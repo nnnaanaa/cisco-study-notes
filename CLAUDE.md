@@ -4,7 +4,7 @@
 
 ## 概要
 
-`document_over_http` はこのディレクトリ配下の Markdown ファイルをブラウザで閲覧するための静的ドキュメントビューア「Document Over HTTP」。GitHub Pages でのホストが前提だが、ビルドツール・パッケージマネージャ・外部 API 呼び出しは一切なし。ローカルでも push 前でもそのまま動く。
+`document_over_http` はこのディレクトリ配下の Markdown ファイルをブラウザで閲覧するための静的ドキュメントビューア「Network Study Notes」。GitHub Pages でのホストが前提だが、ビルドツール・パッケージマネージャ・外部 API 呼び出しは一切なし。ローカルでも push 前でもそのまま動く。
 
 ## アーキテクチャ
 

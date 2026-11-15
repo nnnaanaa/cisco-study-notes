@@ -1,4 +1,4 @@
-# Document Over HTTP
+# Network Study Notes
 
 このディレクトリ配下に置いた Markdown (`.md`) ファイルを、ブラウザで見やすく閲覧できる静的サイトです。ビルドツールや事前加工スクリプトは一切不要で、GitHub Pages でそのままホストできます。ローカルで確認する場合も GitHub への push は不要です。
 

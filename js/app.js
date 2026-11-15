@@ -303,7 +303,7 @@
     if (tocObserver) tocObserver.disconnect();
     tocEl.innerHTML = "";
     if (docPagerEl) docPagerEl.hidden = true;
-    document.title = title + " – Document Over HTTP";
+    document.title = title + " – Network Study Notes";
     scrollContentTo(null, false);
   }
 
@@ -921,7 +921,7 @@
       renderPager(path);
 
       const pageH1 = contentEl.querySelector("h1");
-      document.title = (pageH1 ? pageH1.textContent : meta ? meta.title : path) + " – Document Over HTTP";
+      document.title = (pageH1 ? pageH1.textContent : meta ? meta.title : path) + " – Network Study Notes";
 
       const targetId = location.hash.split("#")[2];
       const target = targetId ? document.getElementById(targetId) : null;
