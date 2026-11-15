@@ -47,7 +47,7 @@ window.DOC_FILES = [
 
   doc("network/wan-vpn/wan-vpn.md", "WAN・VPNの分類", "WAN/VPNの分類とインターネット経由の有無"),
   doc("network/wan-vpn/mpls.md", "IP-VPN・MPLS", "IP-VPNを支えるMPLSのラベル転送と用語"),
-  doc("network/wan-vpn/ipsec.md", "IPsec VPN", "IPsec(AH/ESP/IKE)・ESPモード・NATトラバーサル"),
+  doc("network/wan-vpn/ipsec.md", "IPsec 暗記シート", "ESP/IKE・SA・モード・NATトラバーサル・MSS調整・冗長化と答えの型まとめ"),
   doc("network/wan-vpn/ppp.md", "PPP・PPPoE", "PPPの認証(PAP/CHAP)とPPPoEのフレーム構造"),
   doc("network/wan-vpn/sd-wan.md", "SD-WAN 暗記シート", "SD-WANの構成・アプリ別経路制御・ローカルブレイクアウト・SASEまとめ"),
 
@@ -56,9 +56,9 @@ window.DOC_FILES = [
   doc("network/routing/bgp.md", "BGP", "BGPメッセージ・パスアトリビュート・AS番号"),
   doc("network/routing/bgp-cheatsheet.md", "BGP 暗記シート", "iBGP/eBGP・最適経路の選択・経路制御・セキュリティまとめ"),
   doc("network/routing/reliability.md", "ECMP・BFD", "ECMPによる負荷分散とBFDの死活監視"),
-  doc("network/routing/multicast.md", "マルチキャスト", "マルチキャストアドレス・PIM・IGMP"),
+  doc("network/routing/multicast.md", "マルチキャスト 暗記シート", "アドレス・MAC対応・IGMP・IGMPスヌーピング・PIM・RPFまとめ"),
 
-  doc("network/redundancy/vrrp.md", "VRRP", "VRRPのMaster選出とフェールオーバー"),
+  doc("network/redundancy/vrrp.md", "VRRP 暗記シート", "仮想IP/MAC・マスタ選出・切替え・トラッキング・プリエンプトまとめ"),
   doc("network/redundancy/load-balancer.md", "ロードバランサー", "LBの基本機能・セッション維持・DSR・GSLB"),
 
   doc("network/operation/qos.md", "QoS", "帯域/優先度制御・DiffServ・CoS/DSCP"),
