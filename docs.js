@@ -40,6 +40,7 @@ window.DOC_FILES = [
   doc("network/lan/poe.md", "PoE", "PoE規格(802.3af/at/bt)と給電電力"),
   doc("network/lan/ieee802x.md", "IEEE 802.X 規格一覧", "試験に頻出するIEEE802.X規格一覧"),
   doc("network/lan/lag-stp.md", "LAG・STP", "LAGとSTP(ポート役割/ステータス/RSTP/MSTP)"),
+  doc("network/lan/l2-redundancy.md", "L2 冗長化 暗記シート", "ループ・STP/RSTP/MSTP・リンクアグリゲーション・スタックまとめ"),
   doc("network/lan/vlan-vxlan.md", "VLAN・VXLAN", "802.1QタグVLANとVXLAN/VTEP/EVPN"),
   doc("network/lan/vxlan.md", "VXLAN 暗記シート", "VXLANのヘッダ・MTU・Leaf-Spine・EVPN・ESIまとめ"),
   doc("network/lan/wifi.md", "無線LAN", "Wi-Fi規格・用語・変調/暗号化方式まとめ"),
@@ -60,20 +61,25 @@ window.DOC_FILES = [
 
   doc("network/redundancy/vrrp.md", "VRRP 暗記シート", "仮想IP/MAC・マスタ選出・切替え・トラッキング・プリエンプトまとめ"),
   doc("network/redundancy/load-balancer.md", "ロードバランサー", "LBの基本機能・セッション維持・DSR・GSLB"),
+  doc("network/redundancy/lb-proxy.md", "負荷分散・プロキシ 暗記シート", "セッション維持・ヘルスチェック・DSR・GSLB・プロキシ・CDNまとめ"),
 
   doc("network/operation/qos.md", "QoS", "帯域/優先度制御・DiffServ・CoS/DSCP"),
   doc("network/operation/monitoring.md", "監視（SNMP・Syslog等）", "LLDP・SNMP(MIB/メッセージ/Version)・Syslog・IPFIX"),
+  doc("network/operation/ops-monitoring.md", "運用・監視 暗記シート", "SNMP・Syslog・NTP・フロー情報・ミラーポート・障害の切り分けまとめ"),
   doc("network/operation/calculation.md", "計算問題 暗記シート", "伝送時間・稼働率・待ち行列・呼量・VoIP帯域などの公式と例題"),
 
   doc("network/protocol/tcp.md", "TCP", "TCPヘッダ・フラグ・再送/ウィンドウ制御"),
+  doc("network/protocol/tcp-qos.md", "TCP・QoS 暗記シート", "再送・フロー/輻輳制御・MSS・マーキング・シェーピングまとめ"),
   doc("network/protocol/udp.md", "UDP", "UDPヘッダ構造(8Byte固定)"),
   doc("network/protocol/well-known-ports.md", "ウェルノウンポート", "代表的なポート番号と用途の一覧"),
   doc("network/protocol/dhcp.md", "DHCP", "DHCPの仕組みと4つのメッセージ"),
+  doc("network/protocol/dhcp-nat.md", "DHCP・NAT 暗記シート", "4つのメッセージ・リレー・スヌーピング・NAPT・ヘアピンNATまとめ"),
   doc("network/protocol/dns.md", "DNS 暗記シート", "名前解決・レコード・TTL・構成・DNSへの攻撃と対策まとめ"),
   doc("network/protocol/http.md", "HTTP", "ステータスコード・ヘッダー・認証方式"),
   doc("network/protocol/tls.md", "TLS", "TLS1.2/1.3のネゴシエーション比較"),
   doc("network/protocol/email-header.md", "電子メールのヘッダ", "電子メールヘッダの構造と偽装可能性"),
   doc("network/protocol/mail-security.md", "送信ドメイン認証", "SPF/DKIM/DMARCによる送信ドメイン認証"),
+  doc("network/protocol/mail.md", "メール 暗記シート", "SMTP・MX・エンベロープ・OP25B・SPF/DKIM/DMARCまとめ"),
   doc("network/protocol/voip.md", "VoIP", "VoIPのSIP/RTPによる通話の流れと音声符号化"),
 
   doc("network/security/auth-pki.md", "認証・PKI 暗記シート", "暗号・証明書・TLS・RADIUS/802.1X・Kerberos・SAML/OAuthまとめ"),
