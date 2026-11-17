@@ -22,6 +22,10 @@ window.KEYWORDS = [
   { doc: "network/ip-address/ipv6.md", term: "NAT64 / DNS64", desc: "IPv6だけの端末からIPv4サーバへ。64:ff9b::/96" },
   { doc: "network/ip-address/ipv6.md", term: "DS-Lite / MAP-E", desc: "IPv4 over IPv6。DS-LiteはAFTRでNAPT、MAP-Eはステートレス" },
   { doc: "network/ip-address/ipv6.md", term: "RA Guard", desc: "スイッチで不正なRAを遮断し、ゲートウェイ乗っ取りを防ぐ" },
+  { doc: "network/ip-address/ipv6.md", term: "ICMPv6 の役割", desc: "ICMP に加え、ARP（NDP）・IGMP（MLD）の仕事も受け持つ。Next Header 58" },
+  { doc: "network/ip-address/ipv6.md", term: "NS / NA の3つの使い方", desc: "DAD（送信元 ::）/ アドレス解決（要請ノードマルチキャスト宛て）/ NUD（ユニキャスト宛て）" },
+  { doc: "network/ip-address/ipv6.md", term: "PMTU ブラックホール", desc: "Packet Too Big を FW で止めると、大きいデータだけ届かない → 通す、MSS を調整" },
+  { doc: "network/ip-address/ipv6.md", term: "SLAAC（ステートレス）", desc: "RA のプレフィックス ＋ 自分で作るインタフェース ID。割当ての記録が残らない" },
 
   // ---- LAN・L2 ----
   { doc: "network/lan/ethernet-types.md", term: "1000BASE-T", desc: "ギガビットイーサネット（1Gbps）。数字が速度、-T はツイストペアケーブル" },

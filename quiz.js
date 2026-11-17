@@ -29,6 +29,12 @@ window.QUIZ_QUESTIONS = [
   { doc: "network/ip-address/ipv6.md", q: "IPv6 だけのホストが IPv4 だけのサーバと通信するために、DNS64 と組み合わせて使う技術はどれか。", answer: "NAT64", wrong: ["DS-Lite", "6to4", "MAP-E"], explain: "DNS64 が 64:ff9b::/96 入りの AAAA を合成し、NAT64 が IPv6 と IPv4 を変換する。" },
   { doc: "network/ip-address/ipv6.md", q: "IPv6 ヘッダに関する説明として正しいものはどれか。", answer: "ヘッダチェックサムがない", ref: "ヘッダチェックサム", wrong: ["ヘッダ長は可変である", "ルータがフラグメントを行う", "TTL フィールドがある"], explain: "基本ヘッダは40Byte固定。チェックサムは廃止され、TTL は Hop Limit に置き換わった。" },
   { doc: "network/ip-address/ipv6.md", q: "不正なルータ広告（RA）によるデフォルトゲートウェイの乗っ取りを防ぐスイッチの機能はどれか。", answer: "RA Guard", wrong: ["DHCP Snooping", "BPDU Guard", "Port Security"], explain: "RA Guard は許可したポート以外からの RA を遮断する。" },
+  { doc: "network/ip-address/ipv6.md", q: "IPv6 で、IPv4 の ARP と IGMP の役割を受け持つプロトコルはどれか。", answer: "ICMPv6", wrong: ["DHCPv6", "OSPFv3", "RIPng"], explain: "ARP の代わりは NDP（NS / NA）、IGMP の代わりは MLD で、どちらも ICMPv6 のメッセージ。", ref: "ARP・IGMP などの仕事もまとめて受け持つ" },
+  { doc: "network/ip-address/ipv6.md", q: "FW で ICMPv6 の Packet Too Big を遮断したときに起きる症状はどれか。", answer: "接続はできるが、大きいデータだけ届かない", wrong: ["接続そのものができない", "名前解決だけができない", "小さいパケットだけ届かない"], explain: "3ウェイハンドシェイクなどの小さいパケットは通る。対策は Packet Too Big を通すか、MSS を小さく書き換えること。", ref: "大きいデータだけ届かない" },
+  { doc: "network/ip-address/ipv6.md", q: "NUD（到達不能検知）で送る NS の宛先はどれか。", answer: "相手のユニキャストアドレス", wrong: ["相手の要請ノードマルチキャストアドレス", "ff02::1", "ff02::2"], explain: "アドレス解決では要請ノードマルチキャスト宛て、NUD ではユニキャスト宛てに送る。", ref: "相手の**ユニキャスト**" },
+  { doc: "network/ip-address/ipv6.md", q: "SLAAC の「ステートレス」の意味として正しいものはどれか。", answer: "誰にどのアドレスを渡したかを、どこにも記録しない", wrong: ["アドレスの有効期限がない", "ルータが RA を送らない", "DAD を行わない"], explain: "そのため、誰がどのアドレスを使ったかをログで追いにくい。", ref: "どこにも記録しない" },
+  { doc: "network/ip-address/ipv6.md", q: "ULA（fd00::/8）でグローバル ID をランダムに決める理由はどれか。", answer: "組織同士のネットワークをつないだときに、アドレスが重なりにくくするため", wrong: ["インターネットで一意にするため", "ISP からの割当てを受けるため", "リンクローカルアドレスと区別するため"], explain: "ULA はインターネットには出さない。ISP を変えても変わらない利点もある。", ref: "組織同士をつないでも重なりにくい" },
+  { doc: "network/ip-address/ipv6.md", q: "IPv6 の Flow Label の主な用途はどれか。", answer: "ECMP やリンクアグリゲーションで、同じフローを同じ経路に振り分ける", wrong: ["パケットの優先度を示す", "フラグメントを組み立てる", "パケットの誤りを検出する"], explain: "優先度は Traffic Class（DSCP）で示す。", ref: "ECMP・リンクアグリゲーションの振り分け" },
 
   // ---- LAN・L2 ----
   { doc: "network/lan/ethernet-types.md", q: "1000BASE-T の伝送速度はどれか。", answer: "1Gbps", wrong: ["100Mbps", "10Gbps", "2.5Gbps"], explain: "数字部分が転送速度を表す。1000BASE-T はギガビットイーサネット。" },
