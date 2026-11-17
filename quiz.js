@@ -76,6 +76,8 @@ window.QUIZ_QUESTIONS = [
   { doc: "network/lan/l2-redundancy.md", q: "スタックした2台のスイッチへまたがるリンクアグリゲーションを組む利点はどれか。", answer: "ループができず、すべてのリンクを使える", wrong: ["VLAN の数を増やせる", "MAC アドレステーブルが不要になる", "PoE の給電電力が増える"], explain: "STP ではブロックされるリンクが使われず、切替えにも時間がかかる。", ref: "ブロックされるリンクがない" },
   { doc: "network/lan/l2-redundancy.md", q: "RSTP で、ルートポートの予備としてあらかじめ決めておくポートはどれか。", answer: "代替ポート", wrong: ["バックアップポート", "指定ポート", "エッジポート"], explain: "バックアップポートは指定ポートの予備。予備を決めておくので切替えが速い。", ref: "代替ポート" },
   { doc: "network/lan/l2-redundancy.md", q: "ストームコントロールの動作はどれか。", answer: "ブロードキャストの量がしきい値を超えたら捨てる", wrong: ["BPDU を受信したらポートを閉じる", "検知用のフレームが戻ってきたらポートを閉じる", "ルートブリッジの交代を防ぐ"], explain: "検知用のフレームを使うのはループ検知、ルートブリッジを守るのはルートガード。", ref: "しきい値を超えたら捨てる" },
+  { doc: "network/lan/l2-redundancy.md", q: "RSTP を導入したのに、一部の区間で切替えに時間がかかる原因として考えられるものはどれか。", answer: "その区間に、STP にしか対応していないスイッチが混ざっている", wrong: ["すべてのスイッチ間を全二重でつないでいる", "PC をつなぐポートをエッジポートにしている", "ルートブリッジの優先度を小さくしている"], explain: "STP の機器とつながるポートは、STP のやり方（タイマ）に合わせるので遅くなる。半二重のリンクも同様。", ref: "その部分は STP と同じ速さ" },
+  { doc: "network/lan/l2-redundancy.md", q: "RSTP で、隣のスイッチの異常を BPDU で検知するまでの時間はどれか。", answer: "BPDU が3回（6秒）届かなかったとき", wrong: ["BPDU が1回届かなかったとき", "BPDU が20秒届かなかったとき", "BPDU が50秒届かなかったとき"], explain: "STP は最大エージの 20秒。自分のポートのリンクが切れた場合は、RSTP はすぐに気付く。", ref: "3回（6秒）" },
 
   { doc: "network/lan/vlan-vxlan.md", q: "IEEE 802.1Q タグVLANフレームの TPID の固定値はどれか。", answer: "0x8100", wrong: ["0x0800", "0x86DD", "0x8847"], explain: "TPID=0x8100 でタグ付きフレームであることを示す。" },
   { doc: "network/lan/vlan-vxlan.md", q: "VLANヘッダの VID のビット数として正しいものはどれか。", answer: "12bit（0〜4095）", wrong: ["3bit（0〜7）", "24bit（約1677万）", "16bit（0〜65535）"], explain: "VIDは12bit。3bitはPCP、24bitはVXLANのVNI。" },
