@@ -376,7 +376,7 @@
     const show = button("答えを見る", "quiz-primary kj-reveal", reveal);
     actions.append(show);
     c.append(actions);
-    c.append(el("p", "quiz-hint", "キーボード: Ctrl + Enter で答えを見る / 答えを見たあと 1・2・3 で自己採点"));
+    c.append(el("p", "quiz-hint", "キーボード: Ctrl + Enter で答えを見る / 答えを見たあと 1・2・3 で自己採点、A で AI に確認"));
 
     scrollTop();
     if (cur.revealed) showFeedback();
@@ -420,7 +420,9 @@
     peek.href = location.pathname + location.search + "#/" + cur.it.doc;
     peek.target = "_blank";
     peek.rel = "noopener";
-    fb.append(peek);
+    const links = el("div", "kj-links");
+    links.append(peek, aiButton(cur));
+    fb.append(links);
 
     const gradeRow = el("div", "kj-grades");
     gradeRow.append(el("span", "kj-grades-title", "自己採点"));
@@ -436,6 +438,74 @@
       const overflow = gradeRow.getBoundingClientRect().bottom - areaEl.getBoundingClientRect().bottom + 24;
       if (overflow > 0) areaEl.scrollBy({ top: overflow, behavior: "smooth" });
     }
+  }
+
+  // ---- AI に確認（claude.ai に貼り付けて採点してもらう。API キー不要） ----
+  const AI_URL = "https://claude.ai/new";
+  function aiPrompt(cur) {
+    return [
+      "ネットワークスペシャリスト試験（午後）の記述問題の練習です。私の答えを採点してください。",
+      "",
+      "【資料】" + docTitle(cur.it.doc),
+      "【問われ方】" + plain(cur.it.q),
+      "【答えの型（模範）】" + plain(cur.it.a),
+      "【私の答え】" + (cur.text.trim() || "（未記入）"),
+      "",
+      "次の形で、短く日本語で答えてください。",
+      "1. 判定: 正解 / 部分点 / 不正解（言い回しが違っても、意味が同じなら正解）",
+      "2. 理由: 答えの型と比べて、合っている点と足りない点",
+      "3. 試験で点が取れる書き方の例（20〜40字）",
+    ].join("\n");
+  }
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const ta = el("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.append(ta);
+      ta.select();
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch {
+        ok = false;
+      }
+      ta.remove();
+      return ok;
+    }
+  }
+  function aiButton(cur) {
+    const wrap = el("span", "kj-ai");
+    const b = button("AI に確認（claude.ai）", "quiz-small kj-ai-button", async () => {
+      const text = aiPrompt(cur);
+      const ok = await copyText(text);
+      const w = window.open(AI_URL, "_blank");
+      if (w) w.opener = null;
+      note.textContent = ok
+        ? "採点のお願いをコピーしました。開いた claude.ai に貼り付けて（Ctrl + V）送信してください。"
+        : "コピーできませんでした。下の文を選んでコピーし、claude.ai に貼り付けてください。";
+      if (!ok) {
+        const pre = el("pre", "kj-ai-text", text);
+        note.after(pre);
+      }
+      if (!w) {
+        const a = el("a", null, "claude.ai を開く");
+        a.href = AI_URL;
+        a.target = "_blank";
+        a.rel = "noopener";
+        note.append(" ", a);
+      }
+      note.hidden = false;
+    });
+    b.title = "問われ方・答えの型・自分の答えをまとめた採点のお願いをコピーし、claude.ai を開きます（A）";
+    const note = el("span", "kj-ai-note");
+    note.hidden = true;
+    wrap.append(b, note);
+    return wrap;
   }
 
   function setGrade(key) {
@@ -508,6 +578,14 @@
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const t = e.target;
     if (t && t.closest && t.closest("input, select, textarea:not([readonly])")) return;
+    if (e.key === "a" || e.key === "A") {
+      const ai = ctx.container.querySelector(".kj-ai-button");
+      if (ai) {
+        e.preventDefault();
+        ai.click();
+      }
+      return;
+    }
     const i = ["1", "2", "3"].indexOf(e.key);
     if (i !== -1) {
       e.preventDefault();

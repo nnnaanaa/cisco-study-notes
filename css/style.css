@@ -1436,7 +1436,11 @@ html.print-measure .markdown-body {
 .kj-key { padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
 .kj-key.is-hit { background: var(--ok-bg); color: var(--ok); }
 .kj-key.is-miss { background: var(--ng-bg); color: var(--ng); }
-.markdown-body .kj-doc-link { display: inline-block; margin-top: 0.75rem; font-size: 0.85rem; }
+.kj-links { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; margin-top: 0.75rem; }
+.markdown-body .kj-doc-link { font-size: 0.85rem; }
+.kj-ai { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.kj-ai-note { flex-basis: 100%; font-size: 0.8rem; color: var(--text-muted); line-height: 1.6; }
+.markdown-body .kj-ai-text { flex-basis: 100%; margin: 0.4rem 0 0; max-height: 12rem; overflow: auto; font-size: 0.78rem; white-space: pre-wrap; user-select: all; }
 .kj-grades { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
 .kj-grades-title { font-size: 0.8rem; font-weight: 700; color: var(--text-strong); margin-right: 0.25rem; }
 .kj-grade {
