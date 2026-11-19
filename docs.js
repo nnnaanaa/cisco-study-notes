@@ -27,6 +27,7 @@ window.DOC_FOLDER_LABELS = {
   operation: "運用管理",
   protocol: "プロトコル",
   security: "セキュリティ",
+  review: "復習",
 };
 
 window.DOC_FILES = [
@@ -81,7 +82,10 @@ window.DOC_FILES = [
   doc("network/protocol/mail-security.md", "送信ドメイン認証", "SPF/DKIM/DMARCによる送信ドメイン認証"),
   doc("network/protocol/mail.md", "メール 暗記シート", "SMTP・MX・エンベロープ・OP25B・SPF/DKIM/DMARCまとめ"),
   doc("network/protocol/voip.md", "VoIP", "VoIPのSIP/RTPによる通話の流れと音声符号化"),
+  doc("network/protocol/iot.md", "IoT 暗記シート", "LPWA（LTE-M・NB-IoT・LoRaWAN）・MQTT・CoAPまとめ"),
 
   doc("network/security/auth-pki.md", "認証・PKI 暗記シート", "暗号・証明書・TLS・RADIUS/802.1X・Kerberos・SAML/OAuthまとめ"),
   doc("network/security/security.md", "セキュリティ 暗記シート", "FW・DMZ・NAT・IDS/IPS・DoS・標的型攻撃と対策まとめ"),
+
+  doc("network/review/gogo-miss.md", "午後 単語集の復習", "一問一答で間違えた問題の答えと覚え方（四択問題で繰り返せる）"),
 ];

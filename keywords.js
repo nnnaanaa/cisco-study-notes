@@ -461,4 +461,16 @@ window.KEYWORDS = [
   { doc: "network/security/security.md", term: "ダイナミック ARP インスペクション", desc: "DHCPスヌーピングの情報と照合し、偽のARPを捨てる" },
   { doc: "network/security/security.md", term: "プロキシ認証", desc: "認証情報を持たないマルウェアの通信を遮断し、利用者を特定" },
   { doc: "network/security/security.md", term: "ゼロトラスト", desc: "社内も信頼せず、利用者と端末の状態を毎回確認する" },
+
+  { doc: "network/protocol/iot.md", term: "LPWA", desc: "低消費電力で数 km 以上届く IoT 向けの無線。速度は遅い" },
+  { doc: "network/protocol/iot.md", term: "セルラー系 / 非セルラー系", desc: "LTE-M・NB-IoT（3GPP、免許帯域、SIM） / LoRaWAN・Sigfox（920MHz の ISM バンド）" },
+  { doc: "network/protocol/iot.md", term: "920MHz 帯", desc: "ISM バンド。2.4GHz 帯より電波干渉が少なく、遠くまで届く" },
+  { doc: "network/protocol/iot.md", term: "LTE-M / NB-IoT", desc: "移動できて速め / 固定の機器向けで遅い" },
+  { doc: "network/protocol/iot.md", term: "MQTT", desc: "TCP 1883。Publish/Subscribe 型で、ブローカが中継する" },
+  { doc: "network/protocol/iot.md", term: "MQTT の QoS", desc: "0 最大1回 / 1 最低1回（PUBACK）/ 2 ちょうど1回（PUBREC・PUBREL・PUBCOMP）" },
+  { doc: "network/protocol/iot.md", term: "トピック", desc: "MQTT のメッセージの宛先の名前。/ で区切る。+ と # のワイルドカード" },
+  { doc: "network/protocol/iot.md", term: "CoAP", desc: "UDP 5683。RESTful な軽いプロトコル。CON・NON・ACK・RST" },
+  { doc: "network/protocol/iot.md", term: "CoAP のメッセージ ID", desc: "重複の検出と、CON と ACK の対応付けに使う" },
+  { doc: "network/protocol/iot.md", term: "CoAP のコード", desc: "0.01 GET・0.02 POST・0.04 DELETE ／ 2.01 Created・2.02 Deleted・2.05 Content" },
+  { doc: "network/protocol/iot.md", term: "指数バックオフ", desc: "再送するたびに待ち時間を倍に延ばす" },
 ];
