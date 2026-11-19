@@ -269,6 +269,23 @@
     if (homeLink) homeLink.classList.toggle("active", isHomePath(current));
     const tangoLink = document.getElementById("tangoLink");
     if (tangoLink) tangoLink.classList.toggle("active", isTangoPath(current));
+    const writingLink = document.getElementById("writingLink");
+    if (writingLink) writingLink.classList.toggle("active", isWritingPath(current));
+  }
+
+  function isWritingPath(path) {
+    return path === "kijutsu" || path.startsWith("kijutsu/");
+  }
+
+  // 記述の練習: 各資料の「答えの型」の表から出題する
+  function renderWritingPage() {
+    enterAppPage("記述の練習");
+    if (!window.DocWriting) {
+      contentEl.innerHTML = '<p class="error">記述の練習を読み込めませんでした。</p>';
+    } else {
+      window.DocWriting.render(contentEl, { manifest, folderLabel });
+    }
+    highlightActiveNav();
   }
 
   function isTangoPath(path) {
@@ -888,6 +905,10 @@
     }
     if (isKeywordsPath(path)) {
       renderKeywordsPage(path);
+      return;
+    }
+    if (isWritingPath(path)) {
+      renderWritingPage();
       return;
     }
 

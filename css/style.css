@@ -1403,6 +1403,68 @@ html.print-measure .markdown-body {
   font-size: 10.5pt;
   line-height: 1.7;
 }
+/* ---- 記述の練習 ---- */
+.kj-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  resize: vertical;
+}
+.kj-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.kj-input[readonly] { background: var(--sidebar-bg); }
+.kj-count { margin-top: 0.3rem; text-align: right; font-size: 0.78rem; color: var(--text-muted); }
+.kj-feedback {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border-left: 4px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+.kj-label { display: block; font-size: 0.78rem; font-weight: 700; color: var(--accent); margin-bottom: 0.3rem; }
+.kj-model-text { color: var(--text-strong); line-height: 1.8; }
+.kj-keys { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin-top: 0.75rem; }
+.kj-keys-title { font-size: 0.78rem; color: var(--text-muted); margin-right: 0.25rem; }
+.kj-key { padding: 0.15rem 0.6rem; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+.kj-key.is-hit { background: var(--ok-bg); color: var(--ok); }
+.kj-key.is-miss { background: var(--ng-bg); color: var(--ng); }
+.markdown-body .kj-doc-link { display: inline-block; margin-top: 0.75rem; font-size: 0.85rem; }
+.kj-grades { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--border); }
+.kj-grades-title { font-size: 0.8rem; font-weight: 700; color: var(--text-strong); margin-right: 0.25rem; }
+.kj-grade {
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.kj-grade-ok { border-color: var(--ok); color: var(--ok); }
+.kj-grade-near { border-color: var(--warn); color: var(--warn); }
+.kj-grade-ng { border-color: var(--ng); color: var(--ng); }
+.kj-grade-ok:hover, .kj-grade-ok.is-on { background: var(--ok-bg); }
+.kj-grade-near:hover, .kj-grade-near.is-on { background: var(--warn-bg); }
+.kj-grade-ng:hover, .kj-grade-ng.is-on { background: var(--ng-bg); }
+.kj-review-head { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+.kj-review-head .quiz-source { margin: 0; }
+.kj-tag { padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.75rem; font-weight: 700; }
+.kj-tag-ng { background: var(--ng-bg); color: var(--ng); }
+.kj-tag-near { background: var(--warn-bg); color: var(--warn); }
+.markdown-body .kj-review-q { margin: 0 0 0.5rem; font-weight: 700; color: var(--text-strong); }
+.markdown-body .kj-review-mine { margin: 0 0 0.5rem; font-size: 0.88rem; color: var(--text-muted); }
+.kj-review-a { padding: 0.6rem 0.8rem; border-radius: 8px; background: var(--accent-soft); }
+
 html.print-measure .table-wrap { overflow: visible; }
 html.print-measure .markdown-body table { font-size: 9.5pt; }
 html.print-measure .markdown-body pre { overflow: visible; white-space: pre-wrap; font-size: 8.5pt; }

@@ -65,6 +65,7 @@
     if (saved) actions.append(actionCard("#/quiz/@resume", "四択問題の続きから", saved.answered + " / " + saved.total + " 問 解答済み", !last));
     if (all.weak) actions.append(actionCard("#/quiz/@weak", "要復習の問題を解く", all.weak + " 問（まちがえた・自信なしの問題）", !last && !saved));
     actions.append(actionCard("#/quiz/@random", "ランダムに10問", "全範囲からの腕試し", !last && !saved && !all.weak));
+    actions.append(actionCard("#/kijutsu", "記述の練習", "答えの型を自分で書いて確かめる"));
     actions.append(actionCard("#/keywords", "キーワードをながめる", "重要語を自動で切り替え表示"));
     const tangoCount = window.DocKeywords ? window.DocKeywords.count("tango") : 0;
     if (tangoCount) {
