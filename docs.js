@@ -28,10 +28,33 @@ window.DOC_FOLDER_LABELS = {
   protocol: "プロトコル",
   security: "セキュリティ",
   review: "復習",
+  final: "直前シート",
 };
 
 window.DOC_FILES = [
   "README.md",
+
+  doc("network/final/subnet.md", "サブネット計算 直前シート", "公式・ブロック幅・例"),
+  doc("network/final/ipv6.md", "IPv6 直前シート", "アドレス・NDP・PMTUD・移行技術の要点"),
+  doc("network/final/l2-redundancy.md", "L2 冗長化 直前シート", "STP/RSTP・エッジポート・LAG の要点"),
+  doc("network/final/vxlan.md", "VXLAN 直前シート", "VNI・MTU・Leaf-Spine・EVPN の要点"),
+  doc("network/final/wifi.md", "無線LAN 直前シート", "規格・DFS・CSMA/CA・WPA3・802.1X の要点"),
+  doc("network/final/ipsec.md", "IPsec 直前シート", "ESP/IKE・SA・NAT トラバーサル・MSS の要点"),
+  doc("network/final/sd-wan.md", "SD-WAN 直前シート", "コントローラ・アプリ別経路・ブレイクアウトの要点"),
+  doc("network/final/ospf.md", "OSPF 直前シート", "コスト・DR/BDR・エリア・LSA の要点"),
+  doc("network/final/bgp.md", "BGP 直前シート", "iBGP/eBGP・属性・経路制御の要点"),
+  doc("network/final/multicast.md", "マルチキャスト 直前シート", "アドレス・IGMP・PIM・RPF の要点"),
+  doc("network/final/vrrp.md", "VRRP 直前シート", "マスタ選出・GARP・トラッキングの要点"),
+  doc("network/final/lb-proxy.md", "負荷分散・プロキシ 直前シート", "セッション維持・DSR・GSLB・プロキシの要点"),
+  doc("network/final/ops-monitoring.md", "運用・監視 直前シート", "SNMP・Syslog・フロー情報の要点"),
+  doc("network/final/calculation.md", "計算問題 直前シート", "公式と覚えておく数"),
+  doc("network/final/tcp-qos.md", "TCP・QoS 直前シート", "MSS・再送・輻輳制御・マーキングの要点"),
+  doc("network/final/dhcp-nat.md", "DHCP・NAT 直前シート", "4つのメッセージ・リレー・NAPT の要点"),
+  doc("network/final/dns.md", "DNS 直前シート", "レコード・TTL・ゾーン転送・攻撃と対策の要点"),
+  doc("network/final/mail.md", "メール 直前シート", "ポート・SPF/DKIM/DMARC の要点"),
+  doc("network/final/iot.md", "IoT 直前シート", "LPWA・MQTT・CoAP の要点"),
+  doc("network/final/auth-pki.md", "認証・PKI 直前シート", "証明書・TLS・RADIUS・Kerberos・SAML の要点"),
+  doc("network/final/security.md", "セキュリティ 直前シート", "FW・DMZ・IPS・DoS・標的型攻撃の要点"),
 
   doc("network/ip-address/subnet-cheatsheet.md", "サブネット計算暗記シート", "サブネット計算の公式・早見表まとめ"),
   doc("network/ip-address/ipaddr.md", "サブネット計算の実例", "サブネットマスク計算の実例2パターン"),
