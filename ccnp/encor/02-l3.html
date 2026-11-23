@@ -1,0 +1,583 @@
+<h1>L3（OSPF・EIGRP・BGP）</h1>
+
+<div class="chips">
+  <span class="chip">最長一致・AD</span>
+  <span class="chip">OSPF の隣接・DR/BDR</span>
+  <span class="chip">LSA・エリア</span>
+  <span class="chip">EIGRP との比較</span>
+  <span class="chip">eBGP・最適経路</span>
+</div>
+
+<p>ENCOR の「インフラ」分野のうち、ルーティングで問われるのは次の3つ。中心は <strong>OSPF</strong> で、設定して、show で確かめ、隣接ができなければ直すところまでできるようにする。</p>
+
+<table>
+  <thead><tr><th>テーマ</th><th>出題のポイント</th></tr></thead>
+  <tbody>
+    <tr><td><strong>OSPF</strong></td><td>複数のエリア、集約とフィルタ、ネットワークタイプ（ブロードキャスト・ポイントツーポイント）、passive-interface。<strong>OSPFv2 と v3 の両方</strong></td></tr>
+    <tr><td><strong>EIGRP</strong></td><td>OSPF との<strong>比較</strong>（ディスタンスベクタとリンクステート、メトリック、負荷分散、経路の選び方）</td></tr>
+    <tr><td><strong>BGP</strong></td><td>直接つながった相手との <strong>eBGP</strong>。ネイバーの作り方、最適経路の選び方、ポリシー</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2>1. 経路の選び方</h2>
+
+<p>ルータは、宛先に合う経路が何本あっても、次の順で1本に決める。</p>
+
+<table>
+  <thead><tr><th>順</th><th>比べるもの</th><th>どういうときに使うか</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><strong>最長一致</strong>（プレフィクス長が長い方）</td><td>いつでも最初に効く。/24 と /16 があれば /24</td></tr>
+    <tr><td>2</td><td><strong>AD</strong>（アドミニストレーティブディスタンス。小さい方）</td><td><strong>同じ宛先・同じ長さ</strong>の経路を、<strong>違うプロトコル</strong>が知っているとき</td></tr>
+    <tr><td>3</td><td><strong>メトリック</strong>（小さい方）</td><td>同じプロトコルの中で、同じ宛先への道が複数あるとき</td></tr>
+  </tbody>
+</table>
+
+<div class="two">
+  <table>
+    <thead><tr><th>経路の出どころ</th><th>AD</th></tr></thead>
+    <tbody>
+      <tr><td>直結</td><td>0</td></tr>
+      <tr><td>スタティック</td><td>1</td></tr>
+      <tr><td><strong>eBGP</strong></td><td><strong>20</strong></td></tr>
+      <tr><td><strong>EIGRP</strong>（内部）</td><td><strong>90</strong></td></tr>
+      <tr><td><strong>OSPF</strong></td><td><strong>110</strong></td></tr>
+    </tbody>
+  </table>
+  <table>
+    <thead><tr><th>経路の出どころ</th><th>AD</th></tr></thead>
+    <tbody>
+      <tr><td>IS-IS</td><td>115</td></tr>
+      <tr><td>RIP</td><td>120</td></tr>
+      <tr><td>EIGRP（外部）</td><td>170</td></tr>
+      <tr><td><strong>iBGP</strong></td><td><strong>200</strong></td></tr>
+      <tr><td>使わない経路</td><td>255</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="callout warning">
+  <p>OSPF が 10.1.1.0/24、EIGRP が 10.1.0.0/16 を知っているとき、10.1.1.5 宛ては <strong>OSPF の経路</strong>を使う。AD は EIGRP の方が小さいが、AD を比べるのは<strong>長さが同じとき</strong>だけ。最長一致が先に効く。</p>
+</div>
+
+<h3>ルーティングテーブルの読み方</h3>
+<p>点線の付いたところにポインタを当てる（スマホは押す）と、意味が出る。</p>
+
+<pre data-cli="show" data-title="show ip route ospf">
+R1# show ip route ospf
+
+      2.0.0.0/32 is subnetted, 1 subnets
+<span data-tip="O：同じエリアの中の OSPF の経路">O</span>        2.2.2.2 <span data-tip="[AD/メトリック]。OSPF の AD 110、コストの合計 2">[110/2]</span> via <span data-tip="ネクストホップ（次に渡すルータ）">10.0.12.2</span>, <span data-tip="この経路を覚えてからの時間">00:12:44</span>, GigabitEthernet0/0
+      10.0.0.0/8 is variably subnetted, 3 subnets, 2 masks
+<span data-tip="O IA：ほかのエリアの経路（ABR が Type 3 で知らせたもの）">O IA</span>     10.1.0.0/16 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
+<span data-tip="O E2：OSPF の外（ほかのプロトコルなど）から入れた経路。メトリックは途中のコストを足さない">O E2</span>     10.9.0.0/16 [110/20] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
+O        10.4.4.0/24 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
+                     <span data-tip="同じメトリックの2本目。等コストで負荷分散している">[110/3] via 10.0.13.2</span>, 00:12:44, GigabitEthernet0/1
+</pre>
+
+<!-- ============================================================ -->
+<h2>2. OSPF</h2>
+
+<h3>何のための技術か</h3>
+<p>各ルータが自分のリンクの情報（<strong>LSA</strong>）をエリアの中に配り、全員が<strong>同じ地図（LSDB）</strong>を持つ。各ルータはその地図から、自分を根にした最短経路（<strong>SPF</strong>、ダイクストラ法）を計算する。地図を持っているので収束が速く、<strong>エリア</strong>に分けると大きなネットワークでも計算と LSA の量を抑えられる。メトリックは<strong>コスト</strong>（帯域幅から決まる）。</p>
+
+<h3>隣接ができるまで</h3>
+<figure class="fig">
+  <svg viewBox="0 0 640 150" role="img" aria-label="OSPFの隣接の状態。Down、Init、2-Way、ExStart、Exchange、Loading、Fullの順に進む">
+    <rect class="box" x="4" y="20" width="78" height="44" rx="8"/><text class="t" x="43" y="40" text-anchor="middle">Down</text><text class="s" x="43" y="56" text-anchor="middle">停止</text>
+    <rect class="box" x="94" y="20" width="78" height="44" rx="8"/><text class="t" x="133" y="40" text-anchor="middle">Init</text><text class="s" x="133" y="56" text-anchor="middle">hello 受信</text>
+    <rect class="sw" x="184" y="20" width="78" height="44" rx="8"/><text class="t" x="223" y="40" text-anchor="middle">2-Way</text><text class="s" x="223" y="56" text-anchor="middle">双方向</text>
+    <rect class="box" x="274" y="20" width="78" height="44" rx="8"/><text class="t" x="313" y="40" text-anchor="middle">ExStart</text><text class="s" x="313" y="56" text-anchor="middle">主従を決定</text>
+    <rect class="box" x="364" y="20" width="78" height="44" rx="8"/><text class="t" x="403" y="40" text-anchor="middle">Exchange</text><text class="s" x="403" y="56" text-anchor="middle">目次を交換</text>
+    <rect class="box" x="454" y="20" width="78" height="44" rx="8"/><text class="t" x="493" y="40" text-anchor="middle">Loading</text><text class="s" x="493" y="56" text-anchor="middle">LSA を要求</text>
+    <rect class="sw" x="544" y="20" width="78" height="44" rx="8"/><text class="t" x="583" y="40" text-anchor="middle">Full</text><text class="s" x="583" y="56" text-anchor="middle">地図が一致</text>
+    <path class="ln" d="M82 42 H94 M172 42 H184 M262 42 H274 M352 42 H364 M442 42 H454 M532 42 H544"/>
+    <path class="po" d="M184 76 V84 H262 V76"/>
+    <text class="s" x="223" y="100" text-anchor="middle">DR・BDR を選ぶ</text>
+    <path class="po" d="M274 76 V84 H532 V76"/>
+    <text class="s" x="403" y="100" text-anchor="middle">DBD・LSR・LSU で LSDB を同期</text>
+    <text class="s" x="320" y="136" text-anchor="middle">hello で相手を見つけ、互いを確認したら、地図（LSDB）をそろえて Full になる</text>
+  </svg>
+</figure>
+<ul>
+  <li>DR でも BDR でもないルータ（<strong>DROTHER</strong>）同士は <strong>2-Way で止まる</strong>のが正常。地図は DR・BDR とだけそろえる</li>
+  <li><strong>ExStart・Exchange で止まる</strong>ときは、まず <strong>MTU の不一致</strong>を疑う</li>
+</ul>
+
+<h3>隣接の条件</h3>
+<table>
+  <thead><tr><th>一致が必要</th><th>一致しなくてよい</th></tr></thead>
+  <tbody>
+    <tr><td><strong>エリア ID</strong></td><td><strong>プロセス ID</strong>（<code>router ospf 1</code> の 1。ルータの中だけの番号）</td></tr>
+    <tr><td><strong>hello・dead の秒数</strong></td><td><strong>優先度</strong>（DR 選出に使うだけ）</td></tr>
+    <tr><td><strong>サブネット</strong>（アドレスとマスク）</td><td><strong>コスト</strong></td></tr>
+    <tr><td><strong>認証</strong>の方式とキー</td><td></td></tr>
+    <tr><td><strong>エリアの種類</strong>（スタブかどうか）</td><td></td></tr>
+    <tr><td><strong>MTU</strong>（違うと ExStart・Exchange で止まる）</td><td></td></tr>
+    <tr><td><strong>ルータ ID は重ならない</strong>こと</td><td></td></tr>
+  </tbody>
+</table>
+<p>どちらかのインタフェースが <strong>passive-interface</strong> だと hello を送らないので、隣接はできない。</p>
+
+<h3>ルータ ID の決まり方</h3>
+<ol>
+  <li><code>router-id</code> コマンドで決めた値</li>
+  <li>なければ、<strong>ループバック</strong>のいちばん大きい IP アドレス</li>
+  <li>それもなければ、動いている物理インタフェースのいちばん大きい IP アドレス</li>
+</ol>
+<div class="callout note">
+  <p>ルータ ID は<strong>プロセスが動き出したときに決まる</strong>。あとから <code>router-id</code> を変えても、隣接があるとすぐには変わらず、<code>clear ip ospf process</code> でプロセスをやり直す必要がある。</p>
+</div>
+
+<h3>ネットワークタイプと DR・BDR</h3>
+<table>
+  <thead><tr><th>ネットワークタイプ</th><th>既定になるところ</th><th>DR・BDR</th><th>hello／dead</th></tr></thead>
+  <tbody>
+    <tr><td><strong>broadcast</strong></td><td>Ethernet</td><td><strong>選ぶ</strong></td><td>10 秒／40 秒</td></tr>
+    <tr><td><strong>point-to-point</strong></td><td>シリアル（HDLC・PPP）、トンネル</td><td><strong>選ばない</strong></td><td>10 秒／40 秒</td></tr>
+  </tbody>
+</table>
+
+<p>1つの LAN に何台もルータがいると、全員が全員と地図をそろえるのは無駄が多い。そこで代表の <strong>DR</strong>（と予備の <strong>BDR</strong>）を選び、ほかのルータ（DROTHER）は DR・BDR とだけ地図をそろえる。</p>
+
+<figure class="fig">
+  <svg viewBox="0 0 640 180" role="img" aria-label="1つのLANに4台のルータ。ルータIDが大きい順にDRとBDRになり、ほかはDROTHER">
+    <rect class="pc" x="270" y="70" width="100" height="40" rx="8"/><text class="t" x="320" y="95" text-anchor="middle">LAN</text>
+    <rect class="sw" x="30" y="18" width="130" height="50" rx="20"/><text class="t" x="95" y="40" text-anchor="middle">R4（DR）</text><text class="s" x="95" y="57" text-anchor="middle">RID 4.4.4.4</text>
+    <rect class="sw" x="480" y="18" width="130" height="50" rx="20"/><text class="t" x="545" y="40" text-anchor="middle">R3（BDR）</text><text class="s" x="545" y="57" text-anchor="middle">RID 3.3.3.3</text>
+    <rect class="box" x="30" y="112" width="130" height="50" rx="20"/><text class="t" x="95" y="134" text-anchor="middle">R2（DROTHER）</text><text class="s" x="95" y="151" text-anchor="middle">RID 2.2.2.2</text>
+    <rect class="box" x="480" y="112" width="130" height="50" rx="20"/><text class="t" x="545" y="134" text-anchor="middle">R1（DROTHER）</text><text class="s" x="545" y="151" text-anchor="middle">RID 1.1.1.1</text>
+    <path class="ln" d="M160 48 L270 82 M480 48 L370 82 M160 132 L270 100 M480 132 L370 100"/>
+    <text class="s" x="320" y="30" text-anchor="middle">優先度がみな 1 なら</text>
+    <text class="s" x="320" y="46" text-anchor="middle">ルータ ID の大きい順に DR・BDR</text>
+  </svg>
+</figure>
+
+<ul>
+  <li><strong>優先度</strong>（既定 1、0〜255）が大きい方が DR。同じなら<strong>ルータ ID が大きい方</strong>。<strong>優先度 0 は DR にも BDR にもならない</strong></li>
+  <li><strong>あとから優先度を上げても DR は交代しない</strong>（横取りしない）。DR を変えたいときは、DR・BDR のプロセスをやり直す</li>
+  <li>DROTHER は DR・BDR 宛てに <strong>224.0.0.6</strong> で送り、DR は全 OSPF ルータ宛ての <strong>224.0.0.5</strong> で配る</li>
+  <li>2台だけの Ethernet のリンクは、<code>ip ospf network point-to-point</code> にすると DR 選出を省ける（Full になるのが速い）。<strong>両端でそろえる</strong>こと</li>
+</ul>
+
+<h3>LSA とエリア</h3>
+<figure class="fig">
+  <svg viewBox="0 0 640 190" role="img" aria-label="エリア1とエリア0の境にABR、エリア0と外部の境にASBR。ABRはType3、ASBRはType5を出す">
+    <rect class="po" x="8" y="20" width="190" height="120" rx="12"/><text class="s" x="20" y="38">エリア 1</text>
+    <rect class="po" x="214" y="20" width="250" height="120" rx="12"/><text class="s" x="226" y="38">エリア 0（バックボーン）</text>
+    <rect class="box" x="30" y="62" width="90" height="44" rx="18"/><text class="t" x="75" y="89" text-anchor="middle">R1</text>
+    <rect class="sw" x="160" y="62" width="96" height="44" rx="18"/><text class="t" x="208" y="82" text-anchor="middle">R2</text><text class="s" x="208" y="98" text-anchor="middle">ABR</text>
+    <rect class="box" x="290" y="62" width="80" height="44" rx="18"/><text class="t" x="330" y="89" text-anchor="middle">R3</text>
+    <rect class="sw" x="410" y="62" width="96" height="44" rx="18"/><text class="t" x="458" y="82" text-anchor="middle">R4</text><text class="s" x="458" y="98" text-anchor="middle">ASBR</text>
+    <rect class="pc" x="540" y="62" width="92" height="44" rx="8"/><text class="t" x="586" y="82" text-anchor="middle">外部</text><text class="s" x="586" y="98" text-anchor="middle">EIGRP など</text>
+    <path class="ln" d="M120 84 H160 M256 84 H290 M370 84 H410 M506 84 H540"/>
+    <text class="s" x="75" y="128" text-anchor="middle">Type 1・2</text>
+    <text class="s" x="330" y="128" text-anchor="middle">Type 1・2</text>
+    <rect class="tag" x="133" y="148" width="150" height="24" rx="5"/><text class="s" x="208" y="164" text-anchor="middle">Type 3 で要約して伝える</text>
+    <rect class="tag" x="383" y="148" width="150" height="24" rx="5"/><text class="s" x="458" y="164" text-anchor="middle">Type 5 で外部を伝える</text>
+  </svg>
+</figure>
+
+<table>
+  <thead><tr><th>LSA</th><th>出すルータ</th><th>中身</th><th>届く範囲</th><th>経路の表示</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Type 1</strong>（Router）</td><td>すべてのルータ</td><td>自分のリンクとコスト</td><td>エリアの中</td><td>O</td></tr>
+    <tr><td><strong>Type 2</strong>（Network）</td><td><strong>DR</strong></td><td>その LAN にいるルータの一覧</td><td>エリアの中</td><td>O</td></tr>
+    <tr><td><strong>Type 3</strong>（Summary）</td><td><strong>ABR</strong></td><td>ほかのエリアの経路</td><td>ほかのエリアへ</td><td><strong>O IA</strong></td></tr>
+    <tr><td>Type 4（ASBR Summary）</td><td>ABR</td><td>ASBR がどこにいるか</td><td>ほかのエリアへ</td><td>−</td></tr>
+    <tr><td><strong>Type 5</strong>（External）</td><td><strong>ASBR</strong></td><td>OSPF の外から入れた経路</td><td>スタブ以外の全エリア</td><td><strong>O E2</strong>（O E1）</td></tr>
+    <tr><td>Type 7（NSSA External）</td><td>NSSA の中の ASBR</td><td>外部の経路（ABR で Type 5 に変える）</td><td>NSSA の中</td><td>O N2（O N1）</td></tr>
+  </tbody>
+</table>
+
+<ul>
+  <li><strong>すべてのエリアはエリア 0 に接する</strong>。エリアとエリア 0 の境にいるのが <strong>ABR</strong>、外部の経路を入れるのが <strong>ASBR</strong></li>
+  <li><strong>E2</strong>（既定）はメトリックが外部で決めた値のまま。<strong>E1</strong> は途中の OSPF のコストも足す</li>
+  <li>エリアの種類：<strong>スタブ</strong>は Type 5 を入れず、代わりにデフォルトルート。<strong>トータリースタブ</strong>（Cisco）は Type 3 も入れない。<strong>NSSA</strong> はスタブだがエリアの中に ASBR を置ける（Type 7）</li>
+</ul>
+
+<h3>コスト</h3>
+<p><strong>コスト ＝ 基準の帯域幅 ÷ インタフェースの帯域幅</strong>（小数は切り捨て、最小 1）。基準の既定は <strong>100 Mbps</strong> なので、それより速いリンクはどれもコスト 1 になって区別できない。</p>
+<table>
+  <thead><tr><th>インタフェース</th><th>既定（基準 100 Mbps）</th><th>基準を 100 Gbps にしたとき</th></tr></thead>
+  <tbody>
+    <tr><td>FastEthernet（100 Mbps）</td><td>1</td><td>1000</td></tr>
+    <tr><td>GigabitEthernet（1 Gbps）</td><td><strong>1</strong></td><td>100</td></tr>
+    <tr><td>TenGigabitEthernet（10 Gbps）</td><td><strong>1</strong></td><td>10</td></tr>
+  </tbody>
+</table>
+<p>基準は <code>auto-cost reference-bandwidth 100000</code>（単位は Mbps）で変える。<strong>全ルータでそろえる</strong>こと。1本だけ変えたいときは、インタフェースで <code>ip ospf cost</code> を直接決める。</p>
+
+<h3>設定例</h3>
+<div class="tabs">
+  <div data-tab="network コマンドで有効にする">
+<pre data-cli="config" data-title="R1">
+router ospf 1   ! プロセス ID（ルータの中だけの番号。相手と合わせなくてよい）
+ router-id 1.1.1.1   ! ルータ ID を決める
+ auto-cost reference-bandwidth 100000   ! コストの基準を 100 Gbps に（全ルータでそろえる）
+ passive-interface GigabitEthernet0/1   ! LAN 側は hello を送らない（経路は広告する）
+ network 10.0.12.0 0.0.0.3 area 0   ! ワイルドカードマスクで一致したインタフェースを有効に
+ network 192.168.1.0 0.0.0.255 area 0
+ network 1.1.1.1 0.0.0.0 area 0   ! 0.0.0.0 は「この IP ちょうど」
+</pre>
+    <ul>
+      <li><code>network</code> はインタフェースの IP アドレスと照らし合わせるだけ。<strong>広告する経路の長さは、インタフェースのマスクで決まる</strong></li>
+      <li>LAN 側を passive にするのは、PC に hello を送らないため（勝手なルータとの隣接も防ぐ）。<code>passive-interface default</code> で全部を passive にして、<code>no passive-interface</code> で必要なところだけ戻す書き方もある</li>
+    </ul>
+  </div>
+  <div data-tab="インタフェースで有効にする">
+<pre data-cli="config" data-title="R1">
+interface GigabitEthernet0/0
+ ip ospf 1 area 0   ! このインタフェースをエリア 0 に（network より優先）
+ ip ospf network point-to-point   ! 2台だけのリンクは DR を選ばない（両端でそろえる）
+ ip ospf cost 10   ! コストを直接決める
+!
+interface Loopback0
+ ip ospf 1 area 0
+</pre>
+    <p>どのインタフェースがどのエリアか、設定を見ただけで分かるのが利点。<code>show ip ospf interface</code> では「Attached via Interface Enable」と出る。</p>
+  </div>
+  <div data-tab="集約とフィルタ">
+<pre data-cli="config" data-title="R2（ABR・ASBR）">
+router ospf 1
+ area 1 range 10.1.0.0 255.255.0.0   ! ABR で、エリア 1 の経路を1本にまとめてほかのエリアへ
+ summary-address 172.16.0.0 255.255.0.0   ! ASBR で、外部から入れた経路をまとめる
+ area 1 filter-list prefix BLOCK-10 in   ! ABR で、エリア 1 に入る Type 3 を止める
+ distribute-list prefix BLOCK-10 in   ! このルータのルーティングテーブルに入れない
+!
+ip prefix-list BLOCK-10 seq 5 deny 10.9.9.0/24   ! 10.9.9.0/24 だけ止める
+ip prefix-list BLOCK-10 seq 10 permit 0.0.0.0/0 le 32   ! ほかはすべて通す
+</pre>
+    <div class="callout warning">
+      <p>エリアの中では全員の地図が同じでなければならないので、<strong>LSA そのものは止められない</strong>。<code>distribute-list … in</code> は<strong>自分のルーティングテーブルに入れないだけ</strong>で、LSA はほかのルータに伝わり続ける。エリアの外へ出さないようにしたいときは、<strong>ABR で集約するか、filter-list で Type 3 を止める</strong>。</p>
+    </div>
+  </div>
+</div>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show ip ospf neighbor">
+R1# show ip ospf neighbor
+
+Neighbor ID     <span data-tip="相手の優先度。0 なら DR・BDR にならない">Pri</span>   <span data-tip="FULL なら地図がそろっている。/ の後ろは相手の役割（DR・BDR・DROTHER、ポイントツーポイントは -）">State</span>           <span data-tip="この時間内に hello が来ないと、相手がダウンしたと判断する">Dead Time</span>   Address         Interface
+<span data-tip="相手のルータ ID">2.2.2.2</span>           1   <span data-tip="相手が DR で、地図がそろっている">FULL/DR</span>         00:00:36    10.0.12.2       GigabitEthernet0/0
+3.3.3.3           0   <span data-tip="ポイントツーポイントなので、DR・BDR がない">FULL/  -</span>        00:00:33    10.0.13.2       GigabitEthernet0/1
+4.4.4.4           1   <span data-tip="DROTHER 同士は 2WAY で止まるのが正常">2WAY/DROTHER</span>    00:00:38    10.0.100.4      GigabitEthernet0/2
+5.5.5.5           1   FULL/BDR        00:00:35    10.0.100.5      GigabitEthernet0/2
+6.6.6.6           1   FULL/DR         00:00:31    10.0.100.6      GigabitEthernet0/2
+</pre>
+
+<pre data-cli="show" data-title="show ip ospf interface brief">
+R1# show ip ospf interface brief
+Interface    PID   Area            IP Address/Mask    <span data-tip="出ていく側のコスト。経路のメトリックはこれの合計">Cost</span>  <span data-tip="DR・BDR・DROTHER、P2P（ポイントツーポイント）、LOOP（ループバック）">State</span> <span data-tip="F が Full の数、C が見つけた隣の数">Nbrs F/C</span>
+Lo0          1     0               1.1.1.1/32         1     LOOP  0/0
+Gi0/0        1     0               10.0.12.1/30       1     BDR   1/1
+Gi0/1        1     0               10.0.13.1/30       10    P2P   1/1
+Gi0/2        1     <span data-tip="インタフェースごとのエリア。隣と違うと隣接できない">1</span>               10.0.100.1/24      1     DROTHER 2/3
+</pre>
+
+<ul>
+  <li><code>show ip ospf interface Gi0/0</code>：エリア、ネットワークタイプ、<strong>hello・dead の秒数</strong>、DR・BDR、passive かどうか。隣接できないときはまずここ</li>
+  <li><code>show ip protocols</code>：ルータ ID、network の一覧、<strong>passive のインタフェース</strong></li>
+  <li><code>show ip ospf database</code>：LSDB（LSA の一覧）。Type ごとに分かれて出る</li>
+</ul>
+
+<h3>隣接ができないときの切り分け</h3>
+<div class="steps">
+  <details class="step">
+    <summary>show ip ospf neighbor に何も出ない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show ip ospf interface</code>（OSPF が有効か、エリア、hello・dead、passive）、<code>show ip protocols</code></dd>
+      <dt>原因</dt><dd>network の書き間違い（有効になっていない）、<strong>エリアの不一致</strong>、<strong>hello・dead の不一致</strong>、passive-interface、サブネットの不一致、ACL で 224.0.0.5 を止めている</dd>
+      <dt>直し方</dt><dd>両端でエリア・タイマー・サブネットをそろえる。エリアが違うと <code>%OSPF-4-ERRRCV … mismatched area ID</code> のログが出る</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>ExStart・Exchange のまま進まない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show interfaces</code> の MTU（両端）</dd>
+      <dt>原因</dt><dd><strong>MTU の不一致</strong>。大きい DBD を相手が受け取れない</dd>
+      <dt>直し方</dt><dd><code>ip mtu</code> を両端でそろえる（<code>ip ospf mtu-ignore</code> で確認を省くこともできる）</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>2WAY のまま Full にならない</summary>
+    <dl>
+      <dt>見る</dt><dd>自分と相手の役割（<code>show ip ospf neighbor</code> の State）</dd>
+      <dt>原因</dt><dd><strong>DROTHER 同士なら正常</strong>。DR・BDR とは Full になっているか確かめる</dd>
+      <dt>直し方</dt><dd>問題なし。どうしても Full にしたい2台だけのリンクなら point-to-point にする</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>Full なのに経路が載らない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show ip ospf interface</code> のネットワークタイプ（両端）、<code>show ip ospf database</code></dd>
+      <dt>原因</dt><dd><strong>ネットワークタイプの不一致</strong>（片方 broadcast、片方 point-to-point）、distribute-list で止めている、<strong>ルータ ID の重複</strong>（<code>%OSPF-4-DUP_RTRID</code>）</dd>
+      <dt>直し方</dt><dd>両端のネットワークタイプをそろえる。ルータ ID を重ならない値にして <code>clear ip ospf process</code></dd>
+    </dl>
+  </details>
+</div>
+
+<h3>OSPFv3（IPv6）</h3>
+<p>しくみは v2 と同じ（エリア、DR・BDR、SPF）。違うのは次のところ。</p>
+<ul>
+  <li><strong>インタフェースで有効にする</strong>（network コマンドはない）</li>
+  <li>隣とは<strong>リンクローカルアドレス</strong>でやり取りする</li>
+  <li><strong>ルータ ID は 32 ビット</strong>のまま。IPv4 アドレスが1つもなければ <code>router-id</code> が必須</li>
+  <li>アドレスの情報は新しい LSA（Type 8 Link、Type 9 Intra-Area Prefix）で運ぶ</li>
+</ul>
+<pre data-cli="config" data-title="R1">
+ipv6 unicast-routing   ! IPv6 のルーティングを有効に
+!
+router ospfv3 1
+ router-id 1.1.1.1   ! IPv4 アドレスがなければ必須
+!
+interface GigabitEthernet0/0
+ ipv6 address 2001:DB8:12::1/64
+ ospfv3 1 ipv6 area 0   ! インタフェースで有効にする
+</pre>
+<p>確かめるときは <code>show ospfv3 neighbor</code>、<code>show ipv6 route ospf</code>。</p>
+
+<h3>やってみる：OSPF で隣接を作る</h3>
+<p>下の黒い画面をクリックして、R1 のコンソールのつもりでコマンドを打つ。「大きく表示」を押すと、ページの上に大きな画面で開く。</p>
+<div class="cli-lab" data-lab="ospf"></div>
+
+<h3>やってみる：コストで経路を選ばせる</h3>
+<div class="cli-lab" data-lab="ospf-cost"></div>
+
+<h3>やってみる：隣接ができない原因を探す</h3>
+<div class="cli-lab" data-lab="ospf-fix"></div>
+
+<!-- ============================================================ -->
+<h2>3. EIGRP（OSPF と比べる）</h2>
+
+<p>EIGRP は Cisco が作ったルーティングプロトコル（のちに RFC 7868 で公開）。ENCOR では、設定よりも <strong>OSPF との違い</strong>が問われる。</p>
+
+<table>
+  <thead><tr><th></th><th>EIGRP</th><th>OSPF</th></tr></thead>
+  <tbody>
+    <tr><td>種類</td><td><strong>拡張ディスタンスベクタ</strong></td><td><strong>リンクステート</strong></td></tr>
+    <tr><td>知っていること</td><td>隣が知らせてきた<strong>距離</strong>（トポロジテーブル）</td><td>エリアの中の<strong>地図全体</strong>（LSDB）</td></tr>
+    <tr><td>計算</td><td><strong>DUAL</strong></td><td><strong>SPF</strong>（ダイクストラ法）</td></tr>
+    <tr><td>メトリック</td><td><strong>帯域幅と遅延</strong>（既定）</td><td><strong>コスト</strong>（帯域幅から）</td></tr>
+    <tr><td>AD</td><td>90（内部）／170（外部）</td><td>110</td></tr>
+    <tr><td>負荷分散</td><td>等コストに加えて、<strong>不等コストもできる</strong>（variance）</td><td><strong>等コストだけ</strong></td></tr>
+    <tr><td>階層</td><td>なし（集約はどのインタフェースでもできる）</td><td><strong>エリア</strong>（集約は ABR・ASBR で）</td></tr>
+    <tr><td>更新</td><td>変化があったときに、変わった分だけ</td><td>変化があったときに LSA。30 分ごとに出し直す</td></tr>
+    <tr><td>あて先</td><td>224.0.0.10</td><td>224.0.0.5・224.0.0.6</td></tr>
+    <tr><td>隣接の条件</td><td><strong>AS 番号</strong>・K 値・サブネット・認証</td><td>エリア・タイマー・サブネット・認証など</td></tr>
+  </tbody>
+</table>
+
+<h3>DUAL：予備の経路を先に用意しておく</h3>
+<figure class="fig">
+  <svg viewBox="0 0 640 222" role="img" aria-label="R1からネットワークNへ、R2・R3・R4経由の3つの道。R2経由がサクセサ、R3経由がフィージブルサクセサ">
+    <rect class="sw" x="20" y="76" width="80" height="44" rx="18"/><text class="t" x="60" y="103" text-anchor="middle">R1</text>
+    <rect class="box" x="270" y="12" width="80" height="40" rx="18"/><text class="t" x="310" y="37" text-anchor="middle">R2</text>
+    <rect class="box" x="270" y="78" width="80" height="40" rx="18"/><text class="t" x="310" y="103" text-anchor="middle">R3</text>
+    <rect class="box" x="270" y="144" width="80" height="40" rx="18"/><text class="t" x="310" y="169" text-anchor="middle">R4</text>
+    <rect class="pc" x="530" y="76" width="96" height="44" rx="8"/><text class="t" x="578" y="103" text-anchor="middle">ネットワーク N</text>
+    <path class="fwd" d="M100 90 L270 32"/><path class="fa" d="M100 98 H270"/><path class="ln" d="M100 106 L270 164"/>
+    <path class="ln" d="M350 32 L530 90 M350 98 H530 M350 164 L530 106"/>
+    <text class="s" x="420" y="44" text-anchor="middle">RD 10</text>
+    <text class="s" x="440" y="92" text-anchor="middle">RD 15</text>
+    <text class="s" x="420" y="160" text-anchor="middle">RD 25</text>
+    <text class="s" x="170" y="40" text-anchor="middle">FD 20（サクセサ）</text>
+    <text class="s" x="185" y="92" text-anchor="middle">FD 30（FS）</text>
+    <text class="s" x="170" y="160" text-anchor="middle">FD 35</text>
+    <text class="s" x="320" y="214" text-anchor="middle">FD は R1 から N までの合計、RD は隣のルータから N までの距離</text>
+  </svg>
+</figure>
+<table>
+  <thead><tr><th>用語</th><th>意味</th><th>上の図では</th></tr></thead>
+  <tbody>
+    <tr><td><strong>RD</strong>（Reported Distance）</td><td>隣から宛先までの距離（隣が知らせてきた値）</td><td>R2 経由 10、R3 経由 15、R4 経由 25</td></tr>
+    <tr><td><strong>FD</strong>（Feasible Distance）</td><td>自分から宛先までの距離（RD ＋ 隣までの距離）</td><td>20・30・35</td></tr>
+    <tr><td><strong>サクセサ</strong></td><td>FD がいちばん小さい、いま使う経路</td><td>R2 経由（FD 20）</td></tr>
+    <tr><td><strong>フィージブルサクセサ</strong>（FS）</td><td>ループしないと分かっている予備の経路。条件は <strong>RD ＜ サクセサの FD</strong></td><td>R3 経由（RD 15 ＜ 20）。R4 経由は RD 25 なので FS にならない</td></tr>
+  </tbody>
+</table>
+<ul>
+  <li>サクセサが切れても <strong>FS があれば、計算し直さずにすぐ切り替わる</strong>（これが収束の速さの理由）</li>
+  <li>FS がないと、その経路は <strong>Active</strong> になり、隣に問い合わせ（Query）を出して探し直す</li>
+  <li><code>variance 2</code> にすると、FD がサクセサの 2 倍未満で、<strong>FS の条件を満たす経路</strong>も使う（不等コストの負荷分散）。上の図なら R3 経由（30 ＜ 40）も使う</li>
+  <li>メトリックは既定で、経路の中で<strong>いちばん小さい帯域幅</strong>と、<strong>遅延の合計</strong>から計算する</li>
+</ul>
+
+<div class="tabs">
+  <div data-tab="クラシックモード">
+<pre data-cli="config">
+router eigrp 100   ! AS 番号（隣と合わせる）
+ network 10.0.0.0 0.0.255.255   ! 有効にするインタフェース
+ passive-interface GigabitEthernet0/1
+ variance 2   ! 不等コストの負荷分散
+</pre>
+  </div>
+  <div data-tab="名前付きモード">
+<pre data-cli="config">
+router eigrp CORP   ! 名前は自由
+ address-family ipv4 unicast autonomous-system 100   ! AS 番号はここで決める
+  network 10.0.0.0 0.0.255.255
+  af-interface GigabitEthernet0/1
+   passive-interface   ! インタフェースごとの設定はここにまとまる
+  exit-af-interface
+  topology base
+   variance 2
+</pre>
+  </div>
+</div>
+<p>確かめるときは <code>show ip eigrp neighbors</code>、<code>show ip eigrp topology</code>（サクセサと FS が見える）。</p>
+
+<!-- ============================================================ -->
+<h2>4. BGP（eBGP）</h2>
+
+<h3>何のための技術か</h3>
+<p><strong>AS</strong>（組織ごとのネットワーク）の間で経路をやり取りするプロトコル。経路に<strong>通ってきた AS の一覧（AS_PATH）</strong>を付けて伝える（パスベクタ）。自分の AS 番号が入った経路は受け取らないので、ループしない。速さよりも、<strong>どの経路を使うかを細かく決められる（ポリシー）</strong>ことが大事。</p>
+
+<table>
+  <thead><tr><th></th><th>eBGP</th><th>iBGP</th></tr></thead>
+  <tbody>
+    <tr><td>相手</td><td><strong>違う AS</strong></td><td><strong>同じ AS</strong></td></tr>
+    <tr><td>AD</td><td><strong>20</strong></td><td><strong>200</strong></td></tr>
+    <tr><td>AS_PATH</td><td>送るときに自分の AS を足す</td><td>足さない（だから iBGP で受けた経路は、ほかの iBGP の相手に渡さない）</td></tr>
+    <tr><td>ネクストホップ</td><td>自分に書き換える</td><td>書き換えない</td></tr>
+    <tr><td>相手との距離</td><td>既定では直接つながった相手だけ（TTL 1）</td><td>どこでもよい（ループバック同士が多い）</td></tr>
+  </tbody>
+</table>
+
+<h3>ネイバーができるまで</h3>
+<p>BGP は <strong>TCP 179 番</strong>で相手とつなぐ。相手は自動では見つからないので、<code>neighbor</code> で1台ずつ書く。</p>
+<figure class="fig">
+  <svg viewBox="0 0 640 110" role="img" aria-label="BGPのネイバーの状態。Idle、Connect、Active、OpenSent、OpenConfirm、Establishedの順">
+    <rect class="box" x="4" y="16" width="98" height="46" rx="8"/><text class="t" x="53" y="36" text-anchor="middle">Idle</text><text class="s" x="53" y="53" text-anchor="middle">始める前</text>
+    <rect class="box" x="110" y="16" width="98" height="46" rx="8"/><text class="t" x="159" y="36" text-anchor="middle">Connect</text><text class="s" x="159" y="53" text-anchor="middle">TCP で接続中</text>
+    <rect class="tag" x="216" y="16" width="98" height="46" rx="8"/><text class="t" x="265" y="36" text-anchor="middle">Active</text><text class="s" x="265" y="53" text-anchor="middle">接続をやり直し中</text>
+    <rect class="box" x="322" y="16" width="98" height="46" rx="8"/><text class="t" x="371" y="36" text-anchor="middle">OpenSent</text><text class="s" x="371" y="53" text-anchor="middle">OPEN を送った</text>
+    <rect class="box" x="428" y="16" width="98" height="46" rx="8"/><text class="t" x="477" y="36" text-anchor="middle">OpenConfirm</text><text class="s" x="477" y="53" text-anchor="middle">KEEPALIVE 待ち</text>
+    <rect class="sw" x="534" y="16" width="102" height="46" rx="8"/><text class="t" x="585" y="36" text-anchor="middle">Established</text><text class="s" x="585" y="53" text-anchor="middle">経路を交換</text>
+    <text class="s" x="320" y="92" text-anchor="middle">Active は「動いている」ではなく「つながらずに試し直している」状態</text>
+  </svg>
+</figure>
+<p>つながる条件は次の3つ。</p>
+<ul>
+  <li><code>remote-as</code> が<strong>相手の本当の AS 番号</strong>と一致する（違うと <code>%BGP-3-NOTIFICATION … peer in wrong AS</code>）</li>
+  <li>相手の IP アドレスに<strong>届く</strong></li>
+  <li>相手の設定の <code>neighbor</code> が、<strong>こちらが送る IP アドレス</strong>になっている。ループバック同士でつなぐときは <code>update-source</code> が要り、eBGP なら <code>ebgp-multihop</code> も要る</li>
+</ul>
+
+<h3>設定例</h3>
+<pre data-cli="config" data-title="R1（AS 65001）">
+router bgp 65001   ! 自分の AS 番号
+ bgp router-id 1.1.1.1   ! ルータ ID（決め方は OSPF と同じ）
+ neighbor 203.0.113.2 remote-as 65002   ! 相手の IP と、相手の AS 番号
+ network 172.16.10.0 mask 255.255.255.0   ! ルーティングテーブルと同じ長さで書く
+</pre>
+<div class="callout warning">
+  <p><code>network</code> は、<strong>ルーティングテーブルに同じアドレス・同じ長さの経路があるときだけ</strong>広告する。<code>mask</code> を省くとクラスフルの長さ（172.16.10.0 なら /16）として扱われるので、/24 の経路しかなければ広告されない。</p>
+</div>
+
+<h3>最適経路の選び方</h3>
+<p>同じ宛先に複数の経路があるとき、上から順に比べて、差がついたところで決める。</p>
+<table>
+  <thead><tr><th>順</th><th>属性</th><th>選ぶ方</th><th>メモ</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td><strong>Weight</strong></td><td>大きい</td><td>Cisco 独自。<strong>そのルータの中だけ</strong>。自分で作った経路は 32768</td></tr>
+    <tr><td>2</td><td><strong>Local Preference</strong></td><td>大きい</td><td><strong>AS の中に伝わる</strong>。既定 100</td></tr>
+    <tr><td>3</td><td>自分で作った経路</td><td>自分で作った方</td><td>network・redistribute・集約</td></tr>
+    <tr><td>4</td><td><strong>AS_PATH</strong></td><td>短い</td><td>通る AS の数</td></tr>
+    <tr><td>5</td><td>Origin</td><td>IGP（i）＜ EGP（e）＜ 不明（?）</td><td>network なら i、redistribute なら ?</td></tr>
+    <tr><td>6</td><td><strong>MED</strong></td><td>小さい</td><td>隣の AS に「こちらから入って」と伝える値</td></tr>
+    <tr><td>7</td><td>eBGP か iBGP か</td><td>eBGP</td><td></td></tr>
+    <tr><td>8</td><td>ネクストホップまでの IGP のメトリック</td><td>小さい</td><td></td></tr>
+    <tr><td>9</td><td>（eBGP どうし）受け取った順</td><td>古い</td><td>安定している方</td></tr>
+    <tr><td>10</td><td>ルータ ID</td><td>小さい</td><td>最後は相手の IP アドレスが小さい方</td></tr>
+  </tbody>
+</table>
+<table>
+  <thead><tr><th>やりたいこと</th><th>使う属性</th></tr></thead>
+  <tbody>
+    <tr><td><strong>自分の AS から出ていく</strong>道を選ぶ</td><td><strong>Weight</strong>（そのルータだけ）、<strong>Local Preference</strong>（AS 全体）</td></tr>
+    <tr><td><strong>よその AS から入ってくる</strong>道を選んでもらう</td><td><strong>AS_PATH のプリペンド</strong>（遠回りに見せる）、<strong>MED</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>ポリシー（route-map）</h3>
+<pre data-cli="config" data-title="R1">
+ip prefix-list DEFAULT seq 5 permit 0.0.0.0/0   ! デフォルトルートだけに一致
+!
+route-map FROM-ISP1 permit 10
+ match ip address prefix-list DEFAULT
+ set local-preference 200   ! ISP1 から来たデフォルトルートを優先（出ていく道）
+route-map FROM-ISP1 permit 20   ! ほかの経路はそのまま受け取る
+!
+route-map TO-ISP2 permit 10
+ set as-path prepend 65001 65001   ! AS_PATH を長く見せて、ISP2 からは入りにくくする
+!
+router bgp 65001
+ neighbor 203.0.113.2 route-map FROM-ISP1 in
+ neighbor 198.51.100.2 route-map TO-ISP2 out
+</pre>
+<ul>
+  <li>route-map は、どの行にも一致しなかった経路を<strong>捨てる</strong>（最後に見えない deny がある）。ほかを通すなら、条件なしの <code>permit</code> を最後に置く</li>
+  <li>ポリシーを変えたら、<code>clear ip bgp * soft</code> で経路を流し直す（接続は切らない）</li>
+</ul>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show ip bgp summary">
+R1# show ip bgp summary
+BGP router identifier 1.1.1.1, local AS number 65001
+BGP table version is 4, main routing table version 4
+
+Neighbor        V           AS MsgRcvd MsgSent   TblVer  InQ OutQ Up/Down  <span data-tip="数字なら Established で、その数は受け取った経路の数。Active や Idle ならつながっていない">State/PfxRcd</span>
+203.0.113.2     4        65002      28      25        4    0    0 00:21:07        <span data-tip="Established で、2本の経路を受け取っている">2</span>
+198.51.100.2    4        65003       0       0        1    0    0 never    <span data-tip="つながっていない。相手に届くか、remote-as が合っているかを確かめる">Active</span>
+</pre>
+<pre data-cli="show" data-title="show ip bgp">
+R1# show ip bgp
+     Network          Next Hop            Metric LocPrf Weight Path
+ <span data-tip="* は使える経路、> はその中で最適として選ばれた経路">*></span>   0.0.0.0          203.0.113.2              0             0 <span data-tip="通ってきた AS の一覧と、Origin（i は IGP ＝ network コマンド）">65002 i</span>
+ *>   172.16.10.0/24   <span data-tip="0.0.0.0 は自分で作った経路">0.0.0.0</span>                  0         <span data-tip="自分で作った経路の Weight は 32768">32768</span> i
+ *>   198.51.100.0     203.0.113.2              0             0 65002 i
+</pre>
+
+<h3>つながらないときの切り分け</h3>
+<div class="steps">
+  <details class="step">
+    <summary>State が Active や Idle のまま</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show ip bgp summary</code>、ログ、<code>ping</code> で相手に届くか</dd>
+      <dt>原因</dt><dd><strong>remote-as の書き間違い</strong>（<code>peer in wrong AS</code> のログ）、相手に届かない、ACL で TCP 179 を止めている、ループバック同士なのに <code>update-source</code>・<code>ebgp-multihop</code> がない</dd>
+      <dt>直し方</dt><dd>AS 番号とアドレスを相手の設定と突き合わせる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>Established なのに経路を広告できない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show ip bgp</code> に自分の経路（Next Hop 0.0.0.0）があるか、<code>show ip route</code></dd>
+      <dt>原因</dt><dd><code>network</code> の長さがルーティングテーブルと違う（<strong>mask の書き忘れ</strong>）、route-map や prefix-list で止めている</dd>
+      <dt>直し方</dt><dd><code>network … mask …</code> をテーブルと同じ長さで書き直す</dd>
+    </dl>
+  </details>
+</div>
+
+<h3>やってみる：eBGP で ISP とつなぐ</h3>
+<div class="cli-lab" data-lab="ebgp"></div>
+
+<!-- ============================================================ -->
+<h2>確認問題</h2>
+<p>カードを押すと答えが出る。</p>
+<div class="flashcards">
+  <div class="fc"><div class="fc-q">OSPF が 10.1.1.0/24、EIGRP が 10.1.0.0/16 を知っている。10.1.1.5 宛てはどちらを使うか</div><div class="fc-a"><strong>OSPF</strong>（/24）。<strong>最長一致</strong>が先に効く。AD を比べるのは長さが同じときだけ。</div></div>
+  <div class="fc"><div class="fc-q">OSPF の隣接で、一致しなくてよいものを2つ</div><div class="fc-a"><strong>プロセス ID</strong>、<strong>優先度</strong>（コストも）。エリア・hello と dead・サブネット・認証・エリアの種類・MTU は一致が必要。</div></div>
+  <div class="fc"><div class="fc-q">隣接が ExStart のまま進まない。まず何を疑うか</div><div class="fc-a"><strong>MTU の不一致</strong>。</div></div>
+  <div class="fc"><div class="fc-q">show ip ospf neighbor で 2WAY/DROTHER と出た。異常か</div><div class="fc-a"><strong>正常</strong>。DROTHER 同士は 2-Way で止まり、地図は DR・BDR とだけそろえる。</div></div>
+  <div class="fc"><div class="fc-q">優先度がすべて 1 の LAN で、DR になるのはどのルータか</div><div class="fc-a"><strong>ルータ ID がいちばん大きい</strong>ルータ。ただし、後から来たルータは DR を横取りしない。</div></div>
+  <div class="fc"><div class="fc-q">ルーティングテーブルの O IA と O E2 は、それぞれどの LSA から来た経路か</div><div class="fc-a"><strong>O IA</strong> は ABR の <strong>Type 3</strong>（ほかのエリア）、<strong>O E2</strong> は ASBR の <strong>Type 5</strong>（OSPF の外）。</div></div>
+  <div class="fc"><div class="fc-q">GigabitEthernet と 10 Gigabit のコストが同じになる。なぜか、どう直すか</div><div class="fc-a">基準の帯域幅の既定が <strong>100 Mbps</strong> で、どちらも 1 になるから。<code>auto-cost reference-bandwidth</code> を<strong>全ルータで</strong>大きくする。</div></div>
+  <div class="fc"><div class="fc-q">distribute-list … in で経路を止めた。ほかのルータにも伝わらなくなるか</div><div class="fc-a"><strong>伝わる</strong>。自分のルーティングテーブルに入れないだけで、LSA は止まらない。エリアの外へ出さないなら ABR で集約か filter-list。</div></div>
+  <div class="fc"><div class="fc-q">EIGRP のフィージブルサクセサの条件は</div><div class="fc-a">その経路の <strong>RD（隣から宛先までの距離）が、サクセサの FD より小さい</strong>こと。ループしないことが保証される。</div></div>
+  <div class="fc"><div class="fc-q">OSPF にはできず、EIGRP にはできる負荷分散は</div><div class="fc-a"><strong>不等コストの負荷分散</strong>（<code>variance</code>）。OSPF は等コストだけ。</div></div>
+  <div class="fc"><div class="fc-q">BGP の network 172.16.10.0 と書いたのに広告されない。テーブルには 172.16.10.0/24 がある</div><div class="fc-a">mask を省いたので <strong>/16</strong> として扱われ、テーブルに同じ経路がないから。<code>network 172.16.10.0 mask 255.255.255.0</code> と書く。</div></div>
+  <div class="fc"><div class="fc-q">show ip bgp summary の State が Active。どういう状態か</div><div class="fc-a"><strong>つながっていない</strong>（接続を試し直している）。届くか、remote-as が合っているかを確かめる。</div></div>
+  <div class="fc"><div class="fc-q">自分の AS から出ていく道を、AS の中のすべてのルータで同じように選ばせたい。どの属性を使うか</div><div class="fc-a"><strong>Local Preference</strong>（大きい方が優先、AS の中に伝わる）。Weight はそのルータの中だけ。</div></div>
+  <div class="fc"><div class="fc-q">よその AS から入ってくる道を、こちらの回線にしてほしくない。何をするか</div><div class="fc-a">その回線から出す経路に <strong>AS_PATH のプリペンド</strong>（自分の AS を重ねて遠回りに見せる）。MED を使うこともある。</div></div>
+</div>
