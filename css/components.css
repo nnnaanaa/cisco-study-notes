@@ -225,9 +225,12 @@
 .lab-max { margin-left: auto; height: 24px; padding: 0 10px; border: 1px solid #3a3e48; border-radius: 6px; background: #24262d; color: var(--term-muted); font: inherit; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
 .lab-max:hover { color: var(--term-text); border-color: var(--term-muted); }
 
-/* 作業画面: 画面いっぱいに広げ、左に課題、右に大きな端末 */
+/* 大きく表示: ページの上に窓を重ね、左に課題、右に大きな端末（後ろは暗くする） */
 html.lab-open, html.lab-open body { overflow: hidden; }
-.markdown-body .cli-lab.lab-full { position: fixed; inset: 0; z-index: 1000; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--bg); display: grid; grid-template-columns: min(var(--side-w, 480px), calc(100vw - 320px)) 8px minmax(0, 1fr); }
+.lab-backdrop { position: fixed; inset: 0; z-index: 999; background: rgba(10, 12, 16, 0.55); animation: lab-fade 0.15s ease-out; }
+.markdown-body .cli-lab.lab-full { position: fixed; inset: 0; z-index: 1000; margin: auto; width: min(1320px, calc(100vw - 64px)); height: min(880px, calc(100dvh - 64px)); padding: 0; border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden; background: var(--bg); box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35); display: grid; grid-template-columns: min(var(--side-w, 480px), calc(100% - 328px)) 8px minmax(0, 1fr); animation: lab-pop 0.15s ease-out; }
+@keyframes lab-fade { from { opacity: 0; } }
+@keyframes lab-pop { from { opacity: 0; transform: scale(0.98); } }
 .lab-split { display: none; }
 .lab-full .lab-split { display: block; background: var(--border); cursor: col-resize; touch-action: none; position: relative; }
 .lab-full .lab-split::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 36px; transform: translate(-50%, -50%); border-radius: 2px; background: var(--text-muted); opacity: 0.6; }
@@ -240,7 +243,7 @@ html.lab-open, html.lab-open body { overflow: hidden; }
 .markdown-body .lab-full .lab-term { margin: 0; border-radius: 0; display: flex; flex-direction: column; min-height: 0; }
 .lab-full .lab-screen { flex: 1; height: auto; padding: 14px 22px 18px; font-size: 0.95rem; }
 @media (max-width: 720px) {
-  .markdown-body .cli-lab.lab-full { grid-template-columns: minmax(0, 1fr); grid-template-rows: min(var(--side-h, 40vh), calc(100vh - 140px)) 10px minmax(0, 1fr); }
+  .markdown-body .cli-lab.lab-full { grid-template-columns: minmax(0, 1fr); width: calc(100vw - 20px); height: calc(100dvh - 20px); border-radius: 10px; grid-template-rows: min(var(--side-h, 40%), calc(100% - 150px)) 10px minmax(0, 1fr); }
   .lab-full .lab-split { cursor: row-resize; }
   .lab-full .lab-split::after { width: 36px; height: 2px; }
   .lab-full .lab-side { padding: 14px 16px 18px; }

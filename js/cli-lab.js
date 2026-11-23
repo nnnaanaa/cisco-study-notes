@@ -407,8 +407,8 @@
       const ports = portsOf(v);
       const head = pad(v, 5) + pad(st.vlans.get(v), 33) + pad("active", 10);
       if (!ports.length) { out.push(head.trimEnd()); return; }
-      for (let i = 0; i < ports.length; i += 4) {
-        out.push((i === 0 ? head : " ".repeat(48)) + ports.slice(i, i + 4).join(", ") + (i + 4 < ports.length ? "," : ""));
+      for (let i = 0; i < ports.length; i += 3) {
+        out.push((i === 0 ? head : " ".repeat(48)) + ports.slice(i, i + 3).join(", "));
       }
     });
     [["1002", "fddi-default"], ["1003", "token-ring-default"], ["1004", "fddinet-default"], ["1005", "trnet-default"]].forEach(([v, n]) =>
@@ -826,7 +826,7 @@
     const task = el("div", "lab-task", lab.intro + "<ol>" + lab.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ol>");
     const term = el("div", "term lab-term");
     const bar = el("div", "term-bar", "<span></span><span></span><span></span><b>SW1 — コンソール</b>");
-    const bMax = el("button", "lab-max", "作業画面で開く");
+    const bMax = el("button", "lab-max", "大きく表示");
     bMax.type = "button";
     bar.appendChild(bMax);
     term.appendChild(bar);
@@ -1059,8 +1059,8 @@
     });
     bReset.addEventListener("click", () => { reset(); input.focus({ preventScroll: true }); });
 
-    // 作業画面: 画面いっぱいに広げ、左に課題、右に大きな端末を出す
-    let holder = null;
+    // 大きく表示: いまのページの上に、左に課題・右に大きな端末の窓を重ねて出す（後ろは暗くする）
+    let holder = null, backdrop = null;
     function setFull(on) {
       if (on === box.classList.contains("lab-full")) return;
       if (on) {
@@ -1069,6 +1069,9 @@
         box.before(holder);
         loadSize();
         box.classList.add("lab-full");
+        backdrop = el("div", "lab-backdrop");
+        backdrop.addEventListener("click", () => setFull(false));
+        document.body.appendChild(backdrop);
         document.documentElement.classList.add("lab-open");
         document.addEventListener("keydown", onEsc);
       } else {
@@ -1076,9 +1079,10 @@
         document.documentElement.classList.remove("lab-open");
         document.removeEventListener("keydown", onEsc);
         if (holder) { holder.remove(); holder = null; }
+        if (backdrop) { backdrop.remove(); backdrop = null; }
         term.scrollIntoView({ block: "nearest" });
       }
-      bMax.textContent = on ? "閉じる（Esc）" : "作業画面で開く";
+      bMax.textContent = on ? "閉じる（Esc）" : "大きく表示";
       scroll();
       input.focus({ preventScroll: true });
     }
@@ -1096,8 +1100,11 @@
     }
     function setSize(px, save) {
       const n = narrow(), d = n ? "h" : "w";
-      const max = n ? window.innerHeight - 140 : window.innerWidth - 320;
-      const v = Math.round(Math.max(n ? 100 : 240, Math.min(max, px)));
+      // px は画面の座標。窓の端からの長さに直す
+      const r = box.getBoundingClientRect();
+      const size = n ? px - r.top : px - r.left;
+      const max = n ? r.height - 140 : r.width - 328;
+      const v = Math.round(Math.max(n ? 100 : 240, Math.min(max, size)));
       box.style.setProperty("--side-" + d, v + "px");
       if (save) { try { localStorage.setItem(SIZE_KEY[d], v); } catch (_) {} }
       scroll();
@@ -1131,7 +1138,7 @@
       if (step < 0) return;
       e.preventDefault();
       const r = side.getBoundingClientRect();
-      setSize((n ? r.height : r.width) + (step ? 40 : -40), true);
+      setSize((n ? r.bottom : r.right) + (step ? 40 : -40), true);
     });
 
     function onEsc(e) { if (e.key === "Escape") { e.preventDefault(); setFull(false); } }
