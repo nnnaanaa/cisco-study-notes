@@ -1,42 +1,42 @@
 # Cisco Study Notes
 
-Cisco の資格（CCNP など）の勉強の資料を、ブラウザで読みやすく表示するための静的サイトです。今は **CCNP（ENCOR）** の資料を置いています。
+A static site for reading Cisco certification study notes (CCNP and others) comfortably in the browser. It currently holds notes for **CCNP Enterprise (ENCOR)**. The notes themselves are written in Japanese.
 
-- サイト: https://nnnaanaa.github.io/cisco-study-notes/
-- シートの置き場所: [ccnp/](ccnp/)
+- Site: https://nnnaanaa.github.io/cisco-study-notes/
+- Notes: [ccnp/](ccnp/)
 
-## シートを追加するとき
+## Adding a note
 
-1. `.html`（または `.md`）ファイルを置く（例: `ccnp/encor/02-l3.html`）
-2. [docs.js](docs.js) の `DOC_FILES` に1行追加する
+1. Add an `.html` (or `.md`) file, e.g. `ccnp/encor/02-l3.html`
+2. Add one line to `DOC_FILES` in [docs.js](docs.js)
 
 ```js
-doc("ccnp/encor/02-l3.html", "L3", "EIGRP・OSPF の Cisco での設定"),
+doc("ccnp/encor/02-l3.html", "L3", "EIGRP and OSPF on Cisco devices"),
 ```
 
-- ビルドは不要。`main` に push すると GitHub Pages に反映される
-- ローカルで確認するときは HTTP サーバ経由で開く（`python -m http.server` など。`file://` では読み込めない）
+- No build step. Pushing to `main` deploys to GitHub Pages.
+- To preview locally, serve the folder over HTTP (e.g. `python -m http.server`). Opening it via `file://` does not work.
 
-## HTML の資料の書き方
+## Writing HTML notes
 
-HTML の資料は、`<html>` や `<head>` を書かず、**本文だけ**を書く（先頭は `<h1>` のタイトル）。ビューアの中に読み込まれるので、ナビ・検索・目次・ダークモード・印刷はそのまま使える。`<h2>` と `<h3>` が目次になる。
+An HTML note contains **only the body**: no `<html>` or `<head>`, and it starts with an `<h1>` title. The viewer loads it into the page, so navigation, search, the table of contents, dark mode and printing all work as usual. `<h2>` and `<h3>` headings make up the table of contents.
 
-決まった class や data 属性を書くと、表示のときに部品になる（[js/components.js](js/components.js)、[css/components.css](css/components.css)）。
+Certain classes and data attributes turn into interactive components when the page is rendered ([js/components.js](js/components.js), [css/components.css](css/components.css)).
 
-| 部品 | 書き方 |
+| Component | Markup |
 | --- | --- |
-| 見出しの下のラベル | `<div class="chips"><span class="chip">802.1Q</span></div>` |
-| 囲み | `<div class="callout warning"><p>…</p></div>`（`note` `tip` `important` `warning` `caution`） |
-| 図 | `<figure class="fig"><svg>…</svg></figure>`。SVG の中で `sw`（スイッチ）`pc` `t`（文字）`s`（小さい文字）`fwd`（転送）`blk`（ブロック）`trunk` などの class が使える。2つ並べるときは `<div class="fig-row">` で囲む |
-| 注釈付きの設定 | `<pre data-cli="config" data-title="SW1">` の中に、行の後ろに `  ! 説明` を書く。コマンドと説明が左右に並び、「コマンドだけをコピー」ボタンが付く |
-| 機器の出力 | `<pre data-cli="show" data-title="show …">`。中の `<span data-tip="説明">…</span>` にポインタを当てると説明が出る |
-| 吹き出し | どこでも `<span data-tip="説明">…</span>` |
-| タブ | `<div class="tabs"><div data-tab="L2">…</div><div data-tab="L3">…</div></div>` |
-| 組合せを試す表 | `<div class="combo" data-combo="etherchannel"></div>`（`etherchannel`・`dtp`） |
-| ブリッジ ID の計算 | `<div class="bid-calc"></div>` |
-| 切り分け | `<details class="step"><summary>症状</summary><dl><dt>見る</dt><dd>…</dd>…</dl></details>` |
-| めくれるカード | `<div class="flashcards"><div class="fc"><div class="fc-q">問</div><div class="fc-a">答</div></div></div>` |
-| コマンドを打つ演習 | `<div class="cli-lab" data-lab="trunk"></div>`。演習の中身（課題・最初の状態・相手の機器・答え合わせ・模範解答）は [js/cli-lab.js](js/cli-lab.js) の `LABS` に書く。いまある演習は `trunk`・`etherchannel`・`stp`。演習で使えるコマンドも同じファイルの `DEFS` に足す |
-| 左右に並べる | `<div class="two">…</div>` |
+| Tags under the title | `<div class="chips"><span class="chip">802.1Q</span></div>` |
+| Callout | `<div class="callout warning"><p>…</p></div>` (`note`, `tip`, `important`, `warning`, `caution`) |
+| Figure | `<figure class="fig"><svg>…</svg></figure>`. Inside the SVG you can use classes such as `sw` (switch), `pc`, `t` (text), `s` (small text), `fwd` (forwarding), `blk` (blocking) and `trunk`. Wrap two figures in `<div class="fig-row">` to place them side by side |
+| Annotated config | `<pre data-cli="config" data-title="SW1">`, with `  ! note` at the end of a line. Commands and notes are shown in two columns, with a "copy commands only" button |
+| Device output | `<pre data-cli="show" data-title="show …">`. Hovering a `<span data-tip="note">…</span>` inside it shows the note |
+| Tooltip | `<span data-tip="note">…</span>` anywhere |
+| Tabs | `<div class="tabs"><div data-tab="L2">…</div><div data-tab="L3">…</div></div>` |
+| Mode combination table | `<div class="combo" data-combo="etherchannel"></div>` (`etherchannel`, `dtp`) |
+| Bridge ID calculator | `<div class="bid-calc"></div>` |
+| Troubleshooting step | `<details class="step"><summary>Symptom</summary><dl><dt>Check</dt><dd>…</dd>…</dl></details>` |
+| Flashcards | `<div class="flashcards"><div class="fc"><div class="fc-q">Question</div><div class="fc-a">Answer</div></div></div>` |
+| CLI lab | `<div class="cli-lab" data-lab="trunk"></div>`. A small IOS-like simulator where you type commands and check your answer. Each lab (task, initial state, neighbor devices, checks, model answer) is defined in `LABS` in [js/cli-lab.js](js/cli-lab.js); the available labs are `trunk`, `etherchannel` and `stp`. Supported commands are defined in `DEFS` in the same file |
+| Two columns | `<div class="two">…</div>` |
 
-Markdown の資料（`.md`）も今までどおり使える。
+Markdown notes (`.md`) are still supported.
