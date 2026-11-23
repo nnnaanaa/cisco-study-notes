@@ -3,7 +3,7 @@
 <div class="chips">
   <span class="chip">最長一致・AD</span>
   <span class="chip">OSPF の隣接・DR/BDR</span>
-  <span class="chip">LSA・エリア</span>
+  <span class="chip">エリア</span>
   <span class="chip">EIGRP との比較</span>
   <span class="chip">eBGP・最適経路</span>
 </div>
@@ -69,7 +69,7 @@ R1# show ip route ospf
       2.0.0.0/32 is subnetted, 1 subnets
 <span data-tip="O：同じエリアの中の OSPF の経路">O</span>        2.2.2.2 <span data-tip="[AD/メトリック]。OSPF の AD 110、コストの合計 2">[110/2]</span> via <span data-tip="ネクストホップ（次に渡すルータ）">10.0.12.2</span>, <span data-tip="この経路を覚えてからの時間">00:12:44</span>, GigabitEthernet0/0
       10.0.0.0/8 is variably subnetted, 3 subnets, 2 masks
-<span data-tip="O IA：ほかのエリアの経路（ABR が Type 3 で知らせたもの）">O IA</span>     10.1.0.0/16 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
+<span data-tip="O IA：ほかのエリアの経路（ABR が伝えたもの）">O IA</span>     10.1.0.0/16 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
 <span data-tip="O E2：OSPF の外（ほかのプロトコルなど）から入れた経路。メトリックは途中のコストを足さない">O E2</span>     10.9.0.0/16 [110/20] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
 O        10.4.4.0/24 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
                      <span data-tip="同じメトリックの2本目。等コストで負荷分散している">[110/3] via 10.0.13.2</span>, 00:12:44, GigabitEthernet0/1
@@ -160,9 +160,9 @@ O        10.4.4.0/24 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
   <li>2台だけの Ethernet のリンクは、<code>ip ospf network point-to-point</code> にすると DR 選出を省ける（Full になるのが速い）。<strong>両端でそろえる</strong>こと</li>
 </ul>
 
-<h3>LSA とエリア</h3>
+<h3>エリア</h3>
 <figure class="fig">
-  <svg viewBox="0 0 640 190" role="img" aria-label="エリア1とエリア0の境にABR、エリア0と外部の境にASBR。ABRはType3、ASBRはType5を出す">
+  <svg viewBox="0 0 640 190" role="img" aria-label="エリア1とエリア0の境にABR、エリア0と外部の境にASBR。ABRはほかのエリアの経路、ASBRは外部の経路を伝える">
     <rect class="po" x="8" y="20" width="190" height="120" rx="12"/><text class="s" x="20" y="38">エリア 1</text>
     <rect class="po" x="214" y="20" width="250" height="120" rx="12"/><text class="s" x="226" y="38">エリア 0（バックボーン）</text>
     <rect class="box" x="30" y="62" width="90" height="44" rx="18"/><text class="t" x="75" y="89" text-anchor="middle">R1</text>
@@ -171,29 +171,16 @@ O        10.4.4.0/24 [110/3] via 10.0.12.2, 00:12:44, GigabitEthernet0/0
     <rect class="sw" x="410" y="62" width="96" height="44" rx="18"/><text class="t" x="458" y="82" text-anchor="middle">R4</text><text class="s" x="458" y="98" text-anchor="middle">ASBR</text>
     <rect class="pc" x="540" y="62" width="92" height="44" rx="8"/><text class="t" x="586" y="82" text-anchor="middle">外部</text><text class="s" x="586" y="98" text-anchor="middle">EIGRP など</text>
     <path class="ln" d="M120 84 H160 M256 84 H290 M370 84 H410 M506 84 H540"/>
-    <text class="s" x="75" y="128" text-anchor="middle">Type 1・2</text>
-    <text class="s" x="330" y="128" text-anchor="middle">Type 1・2</text>
-    <rect class="tag" x="133" y="148" width="150" height="24" rx="5"/><text class="s" x="208" y="164" text-anchor="middle">Type 3 で要約して伝える</text>
-    <rect class="tag" x="383" y="148" width="150" height="24" rx="5"/><text class="s" x="458" y="164" text-anchor="middle">Type 5 で外部を伝える</text>
+    <rect class="tag" x="133" y="148" width="150" height="24" rx="5"/><text class="s" x="208" y="164" text-anchor="middle">ほかのエリアへ伝える</text>
+    <rect class="tag" x="383" y="148" width="150" height="24" rx="5"/><text class="s" x="458" y="164" text-anchor="middle">外部の経路を入れる</text>
   </svg>
 </figure>
 
-<table>
-  <thead><tr><th>LSA</th><th>出すルータ</th><th>中身</th><th>届く範囲</th><th>経路の表示</th></tr></thead>
-  <tbody>
-    <tr><td><strong>Type 1</strong>（Router）</td><td>すべてのルータ</td><td>自分のリンクとコスト</td><td>エリアの中</td><td>O</td></tr>
-    <tr><td><strong>Type 2</strong>（Network）</td><td><strong>DR</strong></td><td>その LAN にいるルータの一覧</td><td>エリアの中</td><td>O</td></tr>
-    <tr><td><strong>Type 3</strong>（Summary）</td><td><strong>ABR</strong></td><td>ほかのエリアの経路</td><td>ほかのエリアへ</td><td><strong>O IA</strong></td></tr>
-    <tr><td>Type 4（ASBR Summary）</td><td>ABR</td><td>ASBR がどこにいるか</td><td>ほかのエリアへ</td><td>−</td></tr>
-    <tr><td><strong>Type 5</strong>（External）</td><td><strong>ASBR</strong></td><td>OSPF の外から入れた経路</td><td>スタブ以外の全エリア</td><td><strong>O E2</strong>（O E1）</td></tr>
-    <tr><td>Type 7（NSSA External）</td><td>NSSA の中の ASBR</td><td>外部の経路（ABR で Type 5 に変える）</td><td>NSSA の中</td><td>O N2（O N1）</td></tr>
-  </tbody>
-</table>
-
 <ul>
   <li><strong>すべてのエリアはエリア 0 に接する</strong>。エリアとエリア 0 の境にいるのが <strong>ABR</strong>、外部の経路を入れるのが <strong>ASBR</strong></li>
+  <li>ルーティングテーブルでは、同じエリアの経路が <strong>O</strong>、ほかのエリアの経路（ABR が伝えたもの）が <strong>O IA</strong>、OSPF の外から入れた経路（ASBR が入れたもの）が <strong>O E2</strong>（または O E1）になる</li>
   <li><strong>E2</strong>（既定）はメトリックが外部で決めた値のまま。<strong>E1</strong> は途中の OSPF のコストも足す</li>
-  <li>エリアの種類：<strong>スタブ</strong>は Type 5 を入れず、代わりにデフォルトルート。<strong>トータリースタブ</strong>（Cisco）は Type 3 も入れない。<strong>NSSA</strong> はスタブだがエリアの中に ASBR を置ける（Type 7）</li>
+  <li>エリアの種類：<strong>スタブ</strong>は外部の経路を入れず、代わりにデフォルトルート。<strong>トータリースタブ</strong>（Cisco）はほかのエリアの経路も入れない。<strong>NSSA</strong> はスタブだがエリアの中に ASBR を置ける</li>
 </ul>
 
 <h3>コスト</h3>
@@ -242,14 +229,14 @@ interface Loopback0
 router ospf 1
  area 1 range 10.1.0.0 255.255.0.0   ! ABR で、エリア 1 の経路を1本にまとめてほかのエリアへ
  summary-address 172.16.0.0 255.255.0.0   ! ASBR で、外部から入れた経路をまとめる
- area 1 filter-list prefix BLOCK-10 in   ! ABR で、エリア 1 に入る Type 3 を止める
+ area 1 filter-list prefix BLOCK-10 in   ! ABR で、ほかのエリアの経路がエリア 1 に入るのを止める
  distribute-list prefix BLOCK-10 in   ! このルータのルーティングテーブルに入れない
 !
 ip prefix-list BLOCK-10 seq 5 deny 10.9.9.0/24   ! 10.9.9.0/24 だけ止める
 ip prefix-list BLOCK-10 seq 10 permit 0.0.0.0/0 le 32   ! ほかはすべて通す
 </pre>
     <div class="callout warning">
-      <p>エリアの中では全員の地図が同じでなければならないので、<strong>LSA そのものは止められない</strong>。<code>distribute-list … in</code> は<strong>自分のルーティングテーブルに入れないだけ</strong>で、LSA はほかのルータに伝わり続ける。エリアの外へ出さないようにしたいときは、<strong>ABR で集約するか、filter-list で Type 3 を止める</strong>。</p>
+      <p>エリアの中では全員の地図が同じでなければならないので、<strong>LSA そのものは止められない</strong>。<code>distribute-list … in</code> は<strong>自分のルーティングテーブルに入れないだけ</strong>で、LSA はほかのルータに伝わり続ける。エリアの外へ出さないようにしたいときは、<strong>ABR で集約するか、filter-list で止める</strong>。</p>
     </div>
   </div>
 </div>
@@ -278,7 +265,7 @@ Gi0/2        1     <span data-tip="インタフェースごとのエリア。隣
 <ul>
   <li><code>show ip ospf interface Gi0/0</code>：エリア、ネットワークタイプ、<strong>hello・dead の秒数</strong>、DR・BDR、passive かどうか。隣接できないときはまずここ</li>
   <li><code>show ip protocols</code>：ルータ ID、network の一覧、<strong>passive のインタフェース</strong></li>
-  <li><code>show ip ospf database</code>：LSDB（LSA の一覧）。Type ごとに分かれて出る</li>
+  <li><code>show ip ospf database</code>：LSDB（LSA の一覧）</li>
 </ul>
 
 <h3>隣接ができないときの切り分け</h3>
@@ -323,7 +310,6 @@ Gi0/2        1     <span data-tip="インタフェースごとのエリア。隣
   <li><strong>インタフェースで有効にする</strong>（network コマンドはない）</li>
   <li>隣とは<strong>リンクローカルアドレス</strong>でやり取りする</li>
   <li><strong>ルータ ID は 32 ビット</strong>のまま。IPv4 アドレスが1つもなければ <code>router-id</code> が必須</li>
-  <li>アドレスの情報は新しい LSA（Type 8 Link、Type 9 Intra-Area Prefix）で運ぶ</li>
 </ul>
 <pre data-cli="config" data-title="R1">
 ipv6 unicast-routing   ! IPv6 のルーティングを有効に
@@ -571,7 +557,7 @@ R1# show ip bgp
   <div class="fc"><div class="fc-q">隣接が ExStart のまま進まない。まず何を疑うか</div><div class="fc-a"><strong>MTU の不一致</strong>。</div></div>
   <div class="fc"><div class="fc-q">show ip ospf neighbor で 2WAY/DROTHER と出た。異常か</div><div class="fc-a"><strong>正常</strong>。DROTHER 同士は 2-Way で止まり、地図は DR・BDR とだけそろえる。</div></div>
   <div class="fc"><div class="fc-q">優先度がすべて 1 の LAN で、DR になるのはどのルータか</div><div class="fc-a"><strong>ルータ ID がいちばん大きい</strong>ルータ。ただし、後から来たルータは DR を横取りしない。</div></div>
-  <div class="fc"><div class="fc-q">ルーティングテーブルの O IA と O E2 は、それぞれどの LSA から来た経路か</div><div class="fc-a"><strong>O IA</strong> は ABR の <strong>Type 3</strong>（ほかのエリア）、<strong>O E2</strong> は ASBR の <strong>Type 5</strong>（OSPF の外）。</div></div>
+  <div class="fc"><div class="fc-q">ルーティングテーブルの O IA と O E2 は、それぞれどんな経路か</div><div class="fc-a"><strong>O IA</strong> はほかのエリアの経路（<strong>ABR</strong> が伝える）、<strong>O E2</strong> は OSPF の外から入れた経路（<strong>ASBR</strong> が入れる）。</div></div>
   <div class="fc"><div class="fc-q">GigabitEthernet と 10 Gigabit のコストが同じになる。なぜか、どう直すか</div><div class="fc-a">基準の帯域幅の既定が <strong>100 Mbps</strong> で、どちらも 1 になるから。<code>auto-cost reference-bandwidth</code> を<strong>全ルータで</strong>大きくする。</div></div>
   <div class="fc"><div class="fc-q">distribute-list … in で経路を止めた。ほかのルータにも伝わらなくなるか</div><div class="fc-a"><strong>伝わる</strong>。自分のルーティングテーブルに入れないだけで、LSA は止まらない。エリアの外へ出さないなら ABR で集約か filter-list。</div></div>
   <div class="fc"><div class="fc-q">EIGRP のフィージブルサクセサの条件は</div><div class="fc-a">その経路の <strong>RD（隣から宛先までの距離）が、サクセサの FD より小さい</strong>こと。ループしないことが保証される。</div></div>
