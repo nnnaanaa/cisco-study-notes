@@ -12,7 +12,7 @@ Cisco の資格（CCNP など）の勉強シートを、ブラウザで読みや
 
 ```js
 window.DOC_FILES = [
-  doc("ccnp/encor/00-overview.md", "ENCOR 全体像", "6分野の配点とネスペとの重なり"),
+  doc("ccnp/encor/00-overview.md", "ENCOR 全体像", "6分野の配点と、押さえておきたい技術"),
   doc("ccnp/encor/01-l2.md", "L2", "STP・EtherChannel の Cisco での設定"),
 ];
 ```

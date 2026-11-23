@@ -3,7 +3,7 @@
 
 ***
 
-ENCOR で何を勉強するのかを、ネスペの知識と比べながらつかむためのシート。分野ごとの詳しい勉強シートは、このあと1枚ずつ作る。
+ENCOR で何を勉強するのか、全体をつかむためのシート。分野ごとの詳しい勉強シートは、このあと1枚ずつ作る。
 
 ## ENCOR とは
 
@@ -14,46 +14,27 @@ ENCOR で何を勉強するのかを、ネスペの知識と比べながらつ�
 | 時間 | 約2時間 |
 | 問われること | 理論に加えて、**Cisco の機器でどう設定し、どう確かめるか** |
 
-ネスペは「**なぜその設計にするのか**」を記述で答える試験だった。ENCOR は「**その技術を Cisco の機器でどう動かすか**」を選択式などで問う。理論はかなり重なるが、**Cisco 独自の技術**と**自動化**は新しく勉強する必要がある。
+ENCOR は、理論だけでなく「**その技術を Cisco の機器でどう動かし、どう確かめるか**」を問う。標準の技術に加えて、**Cisco 独自の技術**と**自動化**も出題される。
 
 ## 6つの分野
 
 - 配点は目安。改定されることがあるので、Cisco 公式の出題範囲（Exam Topics）で最新版を確認する
-- **インフラ（30%）とセキュリティ（20%）でほぼ半分**。ここはネスペの知識がよく効く
+- **インフラ（30%）とセキュリティ（20%）でほぼ半分**を占める
 
-| 分野 | 配点 | ネスペとの重なり | 新しく勉強するもの |
+| 分野 | 配点 | 主な内容 | 特に押さえたいもの |
 | --- | --- | --- | --- |
-| アーキテクチャ | 15% | △ | CEF・TCAM、SSO・NSF、**SD-Access**、SD-WAN の構成要素 |
-| 仮想化 | 10% | △ | **VRF**、**LISP**、ハイパーバイザ・コンテナ |
-| インフラ | **30%** | ○ | **EIGRP**、**HSRP**・GLBP、**PVST+**、**PAgP**、Cisco の無線の構成 |
-| 監視・保証 | 10% | △ | **SPAN・RSPAN・ERSPAN**、**IP SLA**、NetFlow、条件付き debug |
-| セキュリティ | **20%** | ○ | **TACACS+**、**CoPP**、MAB、TrustSec、MACsec |
-| 自動化 | 15% | **×** | **Python**、JSON、**YANG**、**NETCONF・RESTCONF**、REST API、EEM、Ansible |
+| アーキテクチャ | 15% | 階層設計、高可用性、無線の構成、SD-WAN、SD-Access、QoS | CEF・TCAM、SSO・NSF、**SD-Access** |
+| 仮想化 | 10% | ハイパーバイザ・コンテナ、VRF、GRE・IPsec、LISP、VXLAN | **VRF**、**LISP** |
+| インフラ | **30%** | STP・EtherChannel、EIGRP・OSPF・eBGP、無線、NAT、HSRP・VRRP、マルチキャスト | **EIGRP**、**HSRP**、**PVST+**、**PAgP** |
+| 監視・保証 | 10% | debug、SNMP・Syslog・NTP、NetFlow、ミラーポート、IP SLA | **SPAN・RSPAN・ERSPAN**、**IP SLA** |
+| セキュリティ | **20%** | AAA、ACL、CoPP、802.1X、無線のセキュリティ、TrustSec | **TACACS+**、**CoPP**、MAB |
+| 自動化 | 15% | Python、JSON、YANG、NETCONF・RESTCONF、REST API、EEM、構成管理ツール | **NETCONF・RESTCONF**、**YANG** |
 
-## ネスペの知識がそのまま使えるもの
-
-ここは**理論の勉強はほぼ不要**。Cisco のコマンドで設定と確認ができるようにするだけでよい。
-
-| ENCOR の範囲 | 使えるネスペの暗記シート |
-| --- | --- |
-| STP・RSTP・MST、EtherChannel（LACP） | [L2 冗長化](https://github.com/nnnaanaa/document/blob/main/network/lan/l2-redundancy.md) |
-| OSPF | [OSPF](https://github.com/nnnaanaa/document/blob/main/network/routing/ospf.md) |
-| eBGP | [BGP](https://github.com/nnnaanaa/document/blob/main/network/routing/bgp-cheatsheet.md) |
-| VRRP | [VRRP](https://github.com/nnnaanaa/document/blob/main/network/redundancy/vrrp.md) |
-| VXLAN | [VXLAN](https://github.com/nnnaanaa/document/blob/main/network/lan/vxlan.md) |
-| GRE・IPsec | [IPsec](https://github.com/nnnaanaa/document/blob/main/network/wan-vpn/ipsec.md) |
-| マルチキャスト（PIM・IGMP） | [マルチキャスト](https://github.com/nnnaanaa/document/blob/main/network/routing/multicast.md) |
-| QoS（マーキング・キューイング・シェーピング） | [TCP・QoS](https://github.com/nnnaanaa/document/blob/main/network/protocol/tcp-qos.md) |
-| 無線（電波、802.1X、WPA3、ローミング） | [無線LAN](https://github.com/nnnaanaa/document/blob/main/network/lan/wifi-cheatsheet.md) |
-| SNMP・Syslog・NTP | [運用・監視](https://github.com/nnnaanaa/document/blob/main/network/operation/ops-monitoring.md) |
-| RADIUS・802.1X、証明書 | [認証・PKI](https://github.com/nnnaanaa/document/blob/main/network/security/auth-pki.md) |
-| SD-WAN の考え方 | [SD-WAN](https://github.com/nnnaanaa/document/blob/main/network/wan-vpn/sd-wan.md) |
-
-## 新しく勉強するもの
+## 押さえておきたい技術
 
 ### インフラ：Cisco 独自のプロトコル
 
-| 技術 | ひとことで | ネスペで近いもの |
+| 技術 | ひとことで | 似ている標準の技術 |
 | --- | --- | --- |
 | **EIGRP** | Cisco が作った IGP。**帯域と遅延**からメトリックを計算し、**DUAL** というしくみで、予備の経路（フィージブルサクセサ）を前もって用意しておくので**切替えが速い** | OSPF・RIP |
 | **HSRP** | Cisco 独自のゲートウェイの冗長化。**アクティブ／スタンバイ**の2台で仮想 IP アドレスを持つ。**プリエンプトは既定で無効** | VRRP（こちらは既定で有効） |
@@ -70,7 +51,7 @@ ENCOR で何を勉強するのかを、ネスペの知識と比べながらつ�
 | **VRF** | 1台のルータの中に**複数の経路表**を作る。顧客や部署ごとに経路を分け、**アドレスが重なってもよい** |
 | **LISP** | 「端末の ID（**EID**）」と「その端末がいる場所（**RLOC**）」を分けて管理するしくみ。SD-Access で使う |
 | **SD-Access** | 社内 LAN を**ファブリック**として集中管理する構成。制御は **LISP**、データの運搬は **VXLAN**、ポリシーは **TrustSec（SGT）** |
-| SD-WAN | ネスペで学んだ SD-WAN を、Cisco の製品の役割名（管理・制御・認証・エッジ）と、経路を配る **OMP** で覚え直す |
+| SD-WAN | 製品の役割（管理・制御・認証・エッジ）と、エッジに経路を配る **OMP** を覚える。データは IPsec のトンネルで運ぶ |
 
 ### 監視・保証：調べるための道具
 
@@ -78,7 +59,7 @@ ENCOR で何を勉強するのかを、ネスペの知識と比べながらつ�
 | --- | --- |
 | **SPAN・RSPAN・ERSPAN** | ミラーポート。**SPAN は同じスイッチ内**、**RSPAN は VLAN で別のスイッチへ**、**ERSPAN は GRE で L3 を越えて**コピーを送る |
 | **IP SLA** | ルータが**自分で試験用の通信を出し**、到達性や遅延を測る。結果に応じて**経路や HSRP を切り替える**こともできる（トラッキング） |
-| NetFlow | フロー情報をコレクタへ送る（ネスペの IPFIX と同じ考え方） |
+| NetFlow | 通信をフロー（送信元・宛先・ポートなどの組）ごとにまとめて、コレクタへ送る。標準化されたものが IPFIX |
 | 条件付き debug | 特定のインタフェースやアドレスに絞って debug を出し、**機器の負荷を抑える** |
 
 ### セキュリティ：機器を守る設定
@@ -114,7 +95,7 @@ flowchart LR
 
 ## Cisco のコマンドの雰囲気
 
-ネスペにはなかった「**設定して、show で確かめる**」作業の例。
+「**設定して、show で確かめる**」作業の例。
 
 **HSRP の設定**（VLAN 10 のゲートウェイを冗長化）
 
