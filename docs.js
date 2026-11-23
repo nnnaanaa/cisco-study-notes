@@ -18,5 +18,5 @@ window.DOC_FOLDER_LABELS = {
 
 window.DOC_FILES = [
   doc("ccnp/encor/00-overview.md", "ENCOR 全体像", "6分野の配点と、押さえておきたい技術"),
-  doc("ccnp/encor/01-l2.md", "L2", "トランク・DTP、EtherChannel、Rapid PVST+・MST と保護機能"),
+  doc("ccnp/encor/01-l2.html", "L2", "トランク・DTP、EtherChannel、Rapid PVST+・MST と保護機能"),
 ];

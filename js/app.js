@@ -106,12 +106,12 @@
     manifest = files
       // 文字列は同一オリジンのローカルファイル、オブジェクトは { path, url } で外部ソースを指定できる
       .map((entry) => (typeof entry === "string" ? { path: entry } : entry))
-      .filter((entry) => entry && typeof entry.path === "string" && /\.md$/i.test(entry.path))
+      .filter((entry) => entry && typeof entry.path === "string" && /\.(md|html)$/i.test(entry.path))
       .map((entry, order) => {
         const path = entry.path;
         const slash = path.lastIndexOf("/");
         const dir = slash === -1 ? "" : path.slice(0, slash);
-        const base = (slash === -1 ? path : path.slice(slash + 1)).replace(/\.md$/i, "");
+        const base = (slash === -1 ? path : path.slice(slash + 1)).replace(/\.(md|html)$/i, "");
         return {
           path,
           dir,
@@ -132,6 +132,23 @@
   }
 
   // 先頭が「# ファイル名.md」の資料は、直後の「## 見出し」を本来のタイトルとして扱う
+  function isHtmlPath(path) {
+    return /\.html$/i.test(path || "");
+  }
+
+  // HTML の資料は、最初の <h1> をタイトルにする。検索用には、タグを外した本文を使う
+  function htmlTitle(html) {
+    const m = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+    return m ? m[1].replace(/<[^>]+>/g, "").trim() : null;
+  }
+  function htmlToText(html) {
+    return html
+      .replace(/<(script|style)[\s\S]*?<\/>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
+      .replace(/\s+/g, " ");
+  }
+
   function extractTitle(md) {
     const lines = md.split(/\r?\n/);
     const first = lines.findIndex((l) => /^#\s+\S/.test(l));
@@ -144,7 +161,7 @@
   }
 
   function updateTitleFromContent(path, text) {
-    const title = extractTitle(text);
+    const title = isHtmlPath(path) ? htmlTitle(text) : extractTitle(text);
     if (!title) return;
     const item = manifest.find((mm) => mm.path === path);
     if (item && !item.fixedTitle && item.title !== title) {
@@ -327,8 +344,9 @@
         try {
           const res = await fetch(item.url || item.path, { cache: "no-cache" });
           if (!res.ok) return;
-          item.body = await res.text();
-          updateTitleFromContent(item.path, item.body);
+          const raw = await res.text();
+          updateTitleFromContent(item.path, raw);
+          item.body = isHtmlPath(item.path) ? htmlToText(raw) : raw;
         } catch {
           /* 取得できないファイルは検索対象から外れるだけで無視する */
         }
@@ -852,7 +870,7 @@
       if (!res.ok) throw new Error("HTTP " + res.status);
       const md = await res.text();
       updateTitleFromContent(path, md);
-      const rawHtml = marked.parse(md);
+      const rawHtml = isHtmlPath(path) ? md : marked.parse(md);
       const safeHtml = window.DOMPurify ? DOMPurify.sanitize(rawHtml) : rawHtml;
       contentEl.innerHTML = safeHtml;
       fixCjkEmphasis(contentEl);
@@ -862,6 +880,7 @@
       if (meta && meta.dir) storageSet(LAST_DOC_KEY, path);
 
       enhanceBlocks(contentEl);
+      if (window.DocComponents) window.DocComponents.init(contentEl);
       contentEl.querySelectorAll("pre code").forEach((block) => {
         if (block.matches(".language-config, .language-show")) return;
         if (window.hljs) hljs.highlightElement(block);

@@ -1,0 +1,183 @@
+/* HTML の資料で使う部品（js/components.js）の見た目。色は style.css の変数を使い、ダークテーマにも合わせる */
+
+.markdown-body {
+  --term-bg: #1b1d23;
+  --term-text: #e4e6eb;
+  --term-muted: #8a909c;
+  --term-accent: #b9a8ff;
+  --fig-a: #6246ea;
+  --fig-b: #0e9f8a;
+}
+[data-theme="dark"] .markdown-body {
+  --term-bg: #0b0c0f;
+  --fig-a: #a893ff;
+  --fig-b: #4fd1bd;
+}
+
+/* 見出しの下の小さなラベル */
+.markdown-body .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 1.5rem; }
+.markdown-body .chip { background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 3px 12px; font-size: 0.8rem; font-weight: 600; }
+
+/* 囲み（div.callout） */
+.markdown-body div.callout {
+  --c: var(--accent);
+  margin: 1.1rem 0;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius);
+  padding: 0.7rem 1.1rem 0.75rem;
+}
+.markdown-body div.callout > :last-child { margin-bottom: 0; }
+.markdown-body div.callout-note { --c: var(--info); background: var(--info-bg); }
+.markdown-body div.callout-tip { --c: var(--ok); background: var(--ok-bg); }
+.markdown-body div.callout-important { --c: var(--accent); background: var(--accent-soft); }
+.markdown-body div.callout-warning { --c: var(--warn); background: var(--warn-bg); }
+.markdown-body div.callout-caution { --c: var(--ng); background: var(--ng-bg); }
+
+/* 図（SVG） */
+.markdown-body .fig { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elevated); padding: 14px 16px 10px; margin: 0 0 1.5em; text-align: center; }
+.markdown-body .fig svg { width: 100%; height: auto; max-width: 640px; }
+.markdown-body .fig figcaption, .markdown-body .fig .cap { font-size: 0.82rem; color: var(--text-muted); margin-top: 6px; }
+.markdown-body .fig-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 0 0 1.5em; }
+.markdown-body .fig-row .fig { margin: 0; }
+.markdown-body .fig-row .fig h4 { margin: 0 0 6px; font-size: 0.85rem; color: var(--text-muted); font-weight: 600; }
+.fig .box { fill: var(--bg-elevated); stroke: var(--border-strong); stroke-width: 1.5; }
+.fig .sw { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.fig .pc { fill: var(--code-bg); stroke: var(--border-strong); stroke-width: 1.5; }
+.fig .t { fill: var(--text-strong); font-size: 13px; font-weight: 600; font-family: Inter, "Noto Sans JP", sans-serif; }
+.fig .s { fill: var(--text-muted); font-size: 11px; font-family: Inter, "Noto Sans JP", sans-serif; }
+.fig .acc { fill: var(--accent); }
+.fig .okf { fill: var(--ok); }
+.fig .ngf { fill: var(--ng); }
+.fig .ln { stroke: var(--border-strong); stroke-width: 2.5; fill: none; }
+.fig .fwd { stroke: var(--ok); stroke-width: 3; fill: none; }
+.fig .blk { stroke: var(--ng); stroke-width: 3; stroke-dasharray: 6 5; fill: none; }
+.fig .trunk { stroke: var(--accent); stroke-width: 4; fill: none; }
+.fig .fa { stroke: var(--fig-a); stroke-width: 2.5; fill: none; }
+.fig .fb { stroke: var(--fig-b); stroke-width: 2.5; fill: none; }
+.fig .po { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 4 3; fill: none; }
+.fig .tag { fill: var(--warn-bg); stroke: var(--warn); stroke-width: 1.5; }
+.fig .cell { fill: var(--code-bg); stroke: var(--border-strong); stroke-width: 1.2; }
+.fig .pill { fill: var(--bg-elevated); stroke: var(--border-strong); stroke-width: 1; }
+
+/* 注釈付きの設定（pre[data-cli="config"]） */
+.cli-annot-wrap { margin: 0 0 1.5em; }
+.cli-annot { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.cli-annot-title { background: var(--term-bg); color: var(--term-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; padding: 6px 14px; border-bottom: 1px solid #2a2d35; }
+.cli-annot-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.cli-annot-cmd { background: var(--term-bg); color: var(--term-text); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 0.84rem; line-height: 1.55; padding: 3px 14px; white-space: pre; overflow-x: auto; }
+.cli-annot-cmd .top { color: var(--term-accent); font-weight: 600; }
+.cli-annot-cmd .sep { color: var(--term-muted); }
+.cli-annot-note { padding: 3px 14px; font-size: 0.84rem; line-height: 1.55; background: var(--bg-elevated); border-top: 1px dashed var(--border); }
+.cli-annot-row:first-child .cli-annot-note, .cli-annot-title + .cli-annot-row .cli-annot-note { border-top: 0; }
+.cli-annot-row:first-child .cli-annot-cmd, .cli-annot-row:first-child .cli-annot-note, .cli-annot-title + .cli-annot-row > div { padding-top: 9px; }
+.cli-annot-row:last-child > div { padding-bottom: 9px; }
+.cli-annot-row:hover .cli-annot-note { background: var(--accent-soft); }
+.cli-annot-row:hover .cli-annot-cmd { background: #262933; }
+.cli-copy { margin-top: 8px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted); border-radius: 8px; padding: 3px 10px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+.cli-copy:hover { color: var(--accent); border-color: var(--accent); }
+
+/* 端末の出力（pre[data-cli="show"]） */
+.markdown-body .term { background: var(--term-bg); color: var(--term-text); border-radius: var(--radius); margin: 0 0 1.5em; overflow: hidden; }
+.markdown-body .term-bar { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid #2a2d35; }
+.markdown-body .term-bar span { width: 10px; height: 10px; border-radius: 50%; background: #3a3e48; }
+.markdown-body .term-bar b { margin-left: 8px; color: var(--term-muted); font-size: 0.75rem; font-weight: 600; }
+.markdown-body .term pre { margin: 0; background: none; border: 0; border-radius: 0; color: inherit; padding: 12px 16px 14px; font-size: 0.84rem; }
+.markdown-body .term pre code { color: inherit; }
+.markdown-body .term .term-prompt { color: var(--term-accent); }
+.markdown-body .term .code-copy-btn { background: #24262d; border-color: #3a3e48; color: var(--term-muted); }
+
+/* 吹き出し（data-tip） */
+.markdown-body .hot { border-bottom: 2px dotted var(--accent); cursor: help; border-radius: 2px; }
+.markdown-body .term .hot { border-bottom-color: var(--term-accent); }
+.markdown-body .hot:hover, .markdown-body .hot:focus { background: rgba(168, 147, 255, 0.2); outline: none; }
+.doc-tip { position: fixed; z-index: 50; max-width: 300px; background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; line-height: 1.6; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); pointer-events: none; opacity: 0; transition: opacity 0.12s; }
+.doc-tip.show { opacity: 1; }
+
+/* 記号の説明のラベル */
+.markdown-body .keys { display: flex; flex-wrap: wrap; gap: 8px; margin: -0.6em 0 1.5em; }
+.markdown-body .key { border: 1px solid var(--border); border-radius: 8px; padding: 3px 10px; font-size: 0.82rem; background: var(--bg-elevated); }
+.markdown-body .key b { font-family: ui-monospace, Consolas, monospace; color: var(--accent); margin-right: 6px; }
+
+/* 左右に並べる */
+.markdown-body .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 0 0 1.5em; }
+.markdown-body .two > * { margin-bottom: 0; }
+
+/* タブ（div.tabs） */
+.markdown-body .tabs { margin: 0 0 1.5em; }
+.markdown-body .tab-bar { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin-bottom: 14px; overflow-x: auto; }
+.markdown-body .tab-bar button { border: 0; background: none; color: var(--text-muted); font: inherit; font-weight: 600; font-size: 0.92rem; padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.markdown-body .tab-bar button.on { color: var(--accent); border-bottom-color: var(--accent); }
+.markdown-body .tab-pane > :last-child { margin-bottom: 0; }
+
+/* 組合せを試す表（div.combo） */
+.markdown-body .combo { border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin: 0 0 1.5em; background: var(--bg-elevated); }
+.combo-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: end; margin-bottom: 12px; }
+.combo-col label { display: block; font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+.combo-seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.combo-seg button { border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); border-radius: 8px; padding: 5px 10px; font: inherit; font-size: 0.84rem; cursor: pointer; }
+.combo-seg button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.combo-vs { color: var(--text-muted); font-weight: 700; padding-bottom: 7px; }
+.combo-result { border-radius: 10px; padding: 12px 14px; display: flex; gap: 14px; align-items: flex-start; font-size: 0.92rem; }
+.combo-result.ok { background: var(--ok-bg); }
+.combo-result.ng { background: var(--ng-bg); }
+.combo-result.mid { background: var(--info-bg); }
+.combo-badge { font-weight: 700; white-space: nowrap; }
+.combo-result.ok .combo-badge { color: var(--ok); }
+.combo-result.ng .combo-badge { color: var(--ng); }
+.combo-result.mid .combo-badge { color: var(--info); }
+.combo-matrix-wrap { overflow-x: auto; }
+.markdown-body table.combo-matrix { width: 100%; border-collapse: separate; border-spacing: 4px; margin: 12px 0 0; font-size: 0.8rem; table-layout: fixed; border: 0; box-shadow: none; }
+.markdown-body table.combo-matrix th { background: none; border: 0; color: var(--text-muted); font-weight: 600; padding: 4px 2px; text-align: center; }
+.markdown-body table.combo-matrix td { text-align: center; border: 0; border-radius: 6px; padding: 6px 2px; font-weight: 600; cursor: pointer; }
+.markdown-body table.combo-matrix td.ok { background: var(--ok-bg); color: var(--ok); }
+.markdown-body table.combo-matrix td.ng { background: var(--ng-bg); color: var(--ng); }
+.markdown-body table.combo-matrix td.mid { background: var(--info-bg); color: var(--info); }
+.markdown-body table.combo-matrix td.sel { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* ブリッジ ID の計算（div.bid-calc） */
+.markdown-body .bid-calc { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin: 0 0 1.5em; background: var(--bg-elevated); }
+.bid-inputs { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 10px; }
+.bid-inputs label { display: flex; flex-direction: column; font-size: 0.78rem; color: var(--text-muted); font-weight: 600; gap: 4px; }
+.bid-inputs select, .bid-inputs input { font: inherit; font-size: 0.92rem; padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--text); width: 140px; }
+.bid-out { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
+.bid-eq { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; }
+.bid-eq b { color: var(--accent); }
+.bid-note { color: var(--text-muted); font-size: 0.85rem; }
+
+/* 切り分け（details.step） */
+.markdown-body details.step { border: 1px solid var(--border); border-radius: 10px; padding: 0 14px; margin: 0 0 10px; background: var(--bg-elevated); }
+.markdown-body details.step[open] { border-color: var(--accent); }
+.markdown-body details.step summary { cursor: pointer; padding: 11px 0; font-weight: 600; color: var(--text-strong); list-style: none; display: flex; gap: 10px; align-items: center; }
+.markdown-body details.step summary::-webkit-details-marker { display: none; }
+.markdown-body details.step summary::before { content: "▸"; color: var(--accent); transition: transform 0.15s; }
+.markdown-body details.step[open] summary::before { transform: rotate(90deg); }
+.markdown-body details.step dl { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 6px 12px; margin: 0 0 14px; font-size: 0.9rem; }
+.markdown-body details.step dt { color: var(--text-muted); font-weight: 600; }
+.markdown-body details.step dd { margin: 0; }
+.markdown-body .steps { margin: 0 0 1.5em; }
+
+/* めくれるカード（div.flashcards） */
+.markdown-body .flashcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin: 0 0 1.5em; }
+.markdown-body .fc { perspective: 900px; min-height: 170px; cursor: pointer; outline: none; }
+.fc-inner { position: relative; width: 100%; height: 100%; min-height: 170px; transition: transform 0.45s; transform-style: preserve-3d; }
+.fc.flip .fc-inner { transform: rotateY(180deg); }
+.fc-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; font-size: 0.9rem; line-height: 1.65; }
+.fc-front { background: var(--bg-elevated); }
+.fc-front .fc-q { font-weight: 600; color: var(--text-strong); }
+.fc-hint { color: var(--text-muted); font-size: 0.75rem; margin-top: 8px; }
+.fc-back { background: var(--accent-soft); transform: rotateY(180deg); }
+.fc:focus-visible .fc-face { border-color: var(--accent); }
+
+@media (max-width: 720px) {
+  .markdown-body .fig-row, .markdown-body .two, .cli-annot-row { grid-template-columns: minmax(0, 1fr); }
+  .combo-picker { grid-template-columns: minmax(0, 1fr); }
+  .combo-vs { display: none; }
+  .markdown-body details.step dl { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media print {
+  .cli-copy, .combo-seg button { display: none; }
+  .fc-inner { transform: none !important; }
+  .fc-face { position: static; backface-visibility: visible; transform: none; margin-bottom: 6px; }
+}

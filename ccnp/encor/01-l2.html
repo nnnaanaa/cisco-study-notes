@@ -1,0 +1,535 @@
+<h1>L2（トランク・EtherChannel・STP）</h1>
+
+<div class="chips">
+  <span class="chip">802.1Q・DTP</span>
+  <span class="chip">ネイティブ VLAN</span>
+  <span class="chip">on・PAgP・LACP</span>
+  <span class="chip">Rapid PVST+・MST</span>
+  <span class="chip">ルートガード・BPDU ガード</span>
+</div>
+
+<p>ENCOR の「インフラ」分野のうち、L2 で問われるのは次の3つ。どれも「<strong>設定して、show で確かめ、おかしければ直す</strong>」までできるようにする。</p>
+
+<table>
+  <thead><tr><th>テーマ</th><th>出題のポイント</th></tr></thead>
+  <tbody>
+    <tr><td><strong>トランク</strong></td><td>802.1Q のトランクを、手動（静的）と <strong>DTP</strong>（自動）で組む。つながらないときの切り分け</td></tr>
+    <tr><td><strong>EtherChannel</strong></td><td>手動（<strong>on</strong>）、<strong>PAgP</strong>、<strong>LACP</strong> で束ねる。束ならないときの切り分け</td></tr>
+    <tr><td><strong>STP</strong></td><td><strong>Rapid PVST+</strong> と <strong>MST</strong> の設定と確認。<strong>ルートガード</strong>・<strong>BPDU ガード</strong>などの保護機能</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2>1. VLAN とトランク</h2>
+
+<h3>何のための技術か</h3>
+<ul>
+  <li><strong>VLAN</strong>：1台のスイッチの中を、<strong>別々のブロードキャストドメインに分ける</strong></li>
+  <li><strong>トランク</strong>：1本のリンクで<strong>複数の VLAN のフレームを運ぶ</strong>。どの VLAN のフレームかは、<strong>802.1Q のタグ</strong>で見分ける</li>
+</ul>
+
+<figure class="fig">
+  <svg viewBox="0 0 640 190" role="img" aria-label="PCとスイッチの間はアクセスポート、スイッチ同士はトランクでタグを付けて運ぶ図">
+    <rect class="pc" x="12" y="30" width="86" height="40" rx="8"/><text class="t" x="55" y="55" text-anchor="middle">PC A</text>
+    <rect class="pc" x="12" y="120" width="86" height="40" rx="8"/><text class="t" x="55" y="145" text-anchor="middle">PC B</text>
+    <rect class="sw" x="170" y="68" width="100" height="54" rx="10"/><text class="t" x="220" y="100" text-anchor="middle">SW1</text>
+    <rect class="sw" x="370" y="68" width="100" height="54" rx="10"/><text class="t" x="420" y="100" text-anchor="middle">SW2</text>
+    <rect class="pc" x="542" y="30" width="86" height="40" rx="8"/><text class="t" x="585" y="55" text-anchor="middle">PC C</text>
+    <rect class="pc" x="542" y="120" width="86" height="40" rx="8"/><text class="t" x="585" y="145" text-anchor="middle">PC D</text>
+    <path class="ln" d="M98 50 L170 82"/><path class="ln" d="M98 140 L170 108"/>
+    <path class="ln" d="M470 82 L542 50"/><path class="ln" d="M470 108 L542 140"/>
+    <text class="s" x="128" y="48">VLAN 10</text><text class="s" x="128" y="152">VLAN 20</text>
+    <text class="s" x="476" y="48">VLAN 10</text><text class="s" x="476" y="152">VLAN 20</text>
+    <path class="trunk" d="M270 95 H370"/>
+    <rect class="tag" x="290" y="44" width="60" height="22" rx="5"/><text class="s" x="320" y="59" text-anchor="middle">タグ 10</text>
+    <rect class="tag" x="290" y="124" width="60" height="22" rx="5"/><text class="s" x="320" y="139" text-anchor="middle">タグ 20</text>
+    <text class="s" x="320" y="178" text-anchor="middle">アクセスポートはタグなし、トランクは VLAN ごとにタグを付けて運ぶ</text>
+  </svg>
+</figure>
+
+<h3>802.1Q のタグ</h3>
+<figure class="fig">
+  <svg viewBox="0 0 640 150" role="img" aria-label="Ethernetフレームの送信元MACとタイプの間に4バイトのタグが入る図">
+    <rect class="cell" x="10" y="20" width="110" height="40" rx="4"/><text class="t" x="65" y="45" text-anchor="middle">宛先 MAC</text>
+    <rect class="cell" x="120" y="20" width="110" height="40" rx="4"/><text class="t" x="175" y="45" text-anchor="middle">送信元 MAC</text>
+    <rect class="tag" x="230" y="20" width="120" height="40" rx="4"/><text class="t" x="290" y="45" text-anchor="middle">タグ 4Byte</text>
+    <rect class="cell" x="350" y="20" width="80" height="40" rx="4"/><text class="t" x="390" y="45" text-anchor="middle">タイプ</text>
+    <rect class="cell" x="430" y="20" width="200" height="40" rx="4"/><text class="t" x="530" y="45" text-anchor="middle">データ</text>
+    <path class="ln" d="M230 60 L120 90"/><path class="ln" d="M350 60 L520 90"/>
+    <rect class="tag" x="120" y="90" width="130" height="34" rx="4"/><text class="s" x="185" y="111" text-anchor="middle">TPID 0x8100（16bit）</text>
+    <rect class="tag" x="250" y="90" width="70" height="34" rx="4"/><text class="s" x="285" y="111" text-anchor="middle">PCP 3bit</text>
+    <rect class="tag" x="320" y="90" width="60" height="34" rx="4"/><text class="s" x="350" y="111" text-anchor="middle">DEI 1bit</text>
+    <rect class="tag" x="380" y="90" width="140" height="34" rx="4"/><text class="t" x="450" y="111" text-anchor="middle">VLAN ID 12bit</text>
+    <text class="s" x="320" y="143" text-anchor="middle">VLAN ID が 12bit なので、使える VLAN は 1〜4094</text>
+  </svg>
+</figure>
+
+<table>
+  <thead><tr><th>項目</th><th>内容</th></tr></thead>
+  <tbody>
+    <tr><td>VLAN ID の範囲</td><td><strong>1〜4094</strong>（標準範囲 1〜1005、拡張範囲 1006〜4094）</td></tr>
+    <tr><td><strong>ネイティブ VLAN</strong></td><td>トランクで<strong>タグを付けずに</strong>送る VLAN。既定は <strong>VLAN 1</strong>。<strong>両端で一致</strong>させる（次の節）</td></tr>
+    <tr><td>許可 VLAN</td><td>トランクで運ぶ VLAN の一覧。既定は<strong>すべて</strong></td></tr>
+  </tbody>
+</table>
+
+<h3>ネイティブ VLAN</h3>
+<p>トランクでは、ふつうはフレームに VLAN のタグを付けて運ぶ。ただし <strong>1つの VLAN だけはタグを付けずに</strong>送る。これがネイティブ VLAN。</p>
+
+<table>
+  <thead><tr><th>トランクで受け取ったフレーム</th><th>どの VLAN として扱うか</th></tr></thead>
+  <tbody>
+    <tr><td>タグ付き（VLAN 20 など）</td><td><strong>タグに書いてある VLAN</strong></td></tr>
+    <tr><td><strong>タグなし</strong></td><td><strong>ネイティブ VLAN</strong>（既定は VLAN 1）</td></tr>
+  </tbody>
+</table>
+
+<p><strong>両端で一致させる理由</strong>：違っていると、<strong>別の VLAN にフレームが漏れる</strong>。</p>
+
+<figure class="fig">
+  <svg viewBox="0 0 640 150" role="img" aria-label="ネイティブVLANが違うと、VLAN10のフレームがVLAN20に漏れる図">
+    <rect class="sw" x="20" y="45" width="130" height="56" rx="10"/><text class="t" x="85" y="70" text-anchor="middle">SW1</text><text class="s" x="85" y="88" text-anchor="middle">ネイティブ 10</text>
+    <rect class="sw" x="300" y="45" width="130" height="56" rx="10"/><text class="t" x="365" y="70" text-anchor="middle">SW2</text><text class="s" x="365" y="88" text-anchor="middle">ネイティブ 20</text>
+    <rect class="pc" x="520" y="53" width="100" height="40" rx="8"/><text class="t" x="570" y="78" text-anchor="middle">VLAN 20</text>
+    <path class="trunk" d="M150 73 H300"/>
+    <text class="s" x="225" y="60" text-anchor="middle">① VLAN 10 を</text><text class="s" x="225" y="96" text-anchor="middle">タグなしで送る</text>
+    <path class="blk" d="M430 73 H520"/>
+    <text class="s" x="475" y="60" text-anchor="middle">② VLAN 20</text><text class="s" x="475" y="96" text-anchor="middle">として扱う</text>
+    <text class="s" x="320" y="135" text-anchor="middle">③ VLAN 10 の通信が VLAN 20 に流れ込む（CDP が NATIVE_VLAN_MISMATCH を知らせる）</text>
+  </svg>
+</figure>
+
+<p><strong>ネイティブ VLAN を VLAN 1 のままにせず、使わない VLAN（例：99）に変える理由</strong></p>
+<table>
+  <thead><tr><th>理由</th><th>内容</th></tr></thead>
+  <tbody>
+    <tr><td>VLAN 1 には、何もしなくても端末が入っている</td><td><strong>すべてのポートは最初から VLAN 1</strong>。設定し忘れたポートや空いているポートにつないだ PC も、VLAN 1 に入る</td></tr>
+    <tr><td><strong>二重タグの攻撃</strong>を防ぐ</td><td>攻撃者がタグを2枚重ねたフレームを送ると、1台目のスイッチが外側のタグ（ネイティブ VLAN）を外し、2台目が内側のタグを読むので、<strong>別の VLAN に入り込める</strong>。攻撃者が<strong>ネイティブ VLAN の中にいる</strong>ことが条件なので、ネイティブ VLAN を<strong>どのアクセスポートにも割り当てない VLAN</strong> にすれば防げる</td></tr>
+    <tr><td>VLAN 1 は何にも使わないのが定番</td><td>VLAN 1 は<strong>削除できず</strong>、CDP・DTP・VTP・PAgP などの制御用のフレームも VLAN 1 で送られる。利用者の通信を混ぜない</td></tr>
+  </tbody>
+</table>
+
+<div class="callout tip">
+  <p>99 という番号に意味はない。<strong>どのアクセスポートにも割り当てていない VLAN</strong> であればよい。ネイティブ VLAN にもタグを付ける <code>vlan dot1q tag native</code>（グローバル設定）もある。使わないポートは <code>shutdown</code> し、使わない VLAN（例：999）に入れておく。</p>
+</div>
+<div class="callout note">
+  <p>「VLAN 1」はネットワーク（ポートの集まり）で、<strong>ループバック</strong>（どのネットワークにも属さない、機器の中だけのインタフェース）とは関係ない。<code>interface Vlan1</code> は、VLAN 1 の中に置いたスイッチ自身のインタフェース（<strong>SVI</strong>）。</p>
+</div>
+
+<h3>設定例</h3>
+<pre data-cli="config" data-title="SW1">
+vlan 10   ! VLAN を作る
+ name SALES   ! 名前は任意
+vlan 20
+ name DEV
+!
+interface GigabitEthernet1/0/1
+ switchport mode access   ! アクセスポートに固定（DTP を使わない）
+ switchport access vlan 10   ! VLAN 10 に入れる
+!
+interface GigabitEthernet1/0/24
+ switchport trunk encapsulation dot1q   ! ISL にも対応した一部の機種でだけ必要
+ switchport mode trunk   ! トランクに固定
+ switchport trunk native vlan 99   ! ネイティブ VLAN を使わない VLAN にする
+ switchport trunk allowed vlan 10,20,99   ! 運ぶ VLAN を決める
+ switchport nonegotiate   ! DTP を止める
+</pre>
+
+<div class="callout warning">
+  <p>許可 VLAN を<strong>あとから足す</strong>ときは <code>switchport trunk allowed vlan add 30</code>。<code>add</code> を忘れると、<strong>一覧が 30 だけに置き換わり</strong>、それまで通っていた VLAN が止まる。</p>
+</div>
+
+<h3>DTP：トランクを自動で組むしくみ</h3>
+<p><strong>DTP</strong> は Cisco 独自の、トランクにするかどうかを相手と自動で決めるプロトコル。両端のモードを選ぶと、どうなるかが分かる。</p>
+
+<table>
+  <thead><tr><th>モード</th><th>動き</th></tr></thead>
+  <tbody>
+    <tr><td><code>access</code></td><td>常にアクセスポート</td></tr>
+    <tr><td><code>trunk</code></td><td>常にトランク（DTP も送る）</td></tr>
+    <tr><td><code>dynamic desirable</code></td><td><strong>自分からトランクにしようと働きかける</strong></td></tr>
+    <tr><td><code>dynamic auto</code></td><td><strong>相手から誘われたらトランクになる</strong>（自分からは誘わない）</td></tr>
+  </tbody>
+</table>
+
+<div class="combo" data-combo="dtp"></div>
+
+<div class="callout caution">
+  <p>DTP を動かしたままにすると、攻撃者の PC が<strong>スイッチのふりをしてトランクを組み、すべての VLAN に入れてしまう</strong>（VLAN ホッピング）。ポートは <code>access</code> か <code>trunk</code> に固定し、トランクには <code>nonegotiate</code> を付けるのが基本。</p>
+</div>
+
+<h3>show で確かめる</h3>
+<p>点線の付いたところにポインタを当てる（スマホは押す）と、意味が出る。</p>
+
+<pre data-cli="show" data-title="show interfaces trunk">
+SW1# show interfaces trunk
+
+Port        Mode         Encapsulation  <span data-tip="trunking ならトランクになっている">Status</span>        <span data-tip="相手と同じ値か確かめる。違うと別の VLAN に漏れる">Native vlan</span>
+Gi1/0/24    on           802.1q         trunking      99
+
+Port        <span data-tip="switchport trunk allowed vlan で許可した VLAN">Vlans allowed on trunk</span>
+Gi1/0/24    10,20,99
+
+Port        <span data-tip="許可した VLAN のうち、このスイッチに VLAN が作られているもの。ここにない VLAN は作り忘れ">Vlans allowed and active in management domain</span>
+Gi1/0/24    10,20,99
+
+Port        <span data-tip="そのうち STP で転送中のもの。ここにない VLAN は、このトランクの先へ流れない">Vlans in spanning tree forwarding state and not pruned</span>
+Gi1/0/24    10,20,99
+</pre>
+
+<ul>
+  <li><code>show interfaces Gi1/0/24 switchport</code>：<strong>Administrative Mode</strong>（設定したモード）と <strong>Operational Mode</strong>（実際の状態）を比べられる</li>
+  <li><code>show vlan brief</code>：VLAN と<strong>アクセスポート</strong>の一覧。<strong>トランクのポートはここに出ない</strong></li>
+</ul>
+
+<h3>よくあるトラブル</h3>
+<div class="steps">
+  <details class="step">
+    <summary>トランクにならない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show interfaces Gi1/0/24 switchport</code> の Operational Mode</dd>
+      <dt>原因</dt><dd>両端が <code>dynamic auto</code>、または片方が <code>access</code></dd>
+      <dt>直し方</dt><dd>両端を <code>switchport mode trunk</code> にそろえる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>一部の VLAN だけ通らない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show interfaces trunk</code> の3つの VLAN の一覧</dd>
+      <dt>原因</dt><dd><strong>許可 VLAN に入っていない</strong>、その VLAN を<strong>作っていない</strong>、または STP でブロックされている</dd>
+      <dt>直し方</dt><dd><code>switchport trunk allowed vlan add</code>、<code>vlan</code> で作る、STP の状態を確かめる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>NATIVE_VLAN_MISMATCH のログが出る</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show interfaces trunk</code> の Native vlan（両端）</dd>
+      <dt>原因</dt><dd>両端の <code>native vlan</code> が違う</dd>
+      <dt>直し方</dt><dd>両端を同じ値にする</dd>
+    </dl>
+  </details>
+</div>
+
+<!-- ============================================================ -->
+<h2>2. EtherChannel</h2>
+
+<h3>何のための技術か</h3>
+<p>複数の物理リンクを<strong>1本の論理リンク（Port-channel）</strong>に束ねる。帯域が増え、1本が切れても通信が続く。</p>
+
+<div class="fig-row">
+  <figure class="fig">
+    <h4>束ねないとき</h4>
+    <svg viewBox="0 0 360 160" role="img" aria-label="2本のうち1本がSTPでブロックされる図">
+      <rect class="sw" x="20" y="50" width="90" height="56" rx="10"/><text class="t" x="65" y="83" text-anchor="middle">SW1</text>
+      <rect class="sw" x="250" y="50" width="90" height="56" rx="10"/><text class="t" x="295" y="83" text-anchor="middle">SW2</text>
+      <path class="fwd" d="M110 65 H250"/><path class="blk" d="M110 93 H250"/>
+      <text class="s" x="180" y="57" text-anchor="middle">転送</text>
+      <text class="s" x="180" y="117" text-anchor="middle">STP がブロック（使えない）</text>
+      <text class="s" x="180" y="148" text-anchor="middle">使える帯域：1本分</text>
+    </svg>
+  </figure>
+  <figure class="fig">
+    <h4>束ねたとき（Port-channel1）</h4>
+    <svg viewBox="0 0 360 160" role="img" aria-label="2本を束ねて両方使い、通信ごとに振り分ける図">
+      <rect class="sw" x="20" y="50" width="90" height="56" rx="10"/><text class="t" x="65" y="83" text-anchor="middle">SW1</text>
+      <rect class="sw" x="250" y="50" width="90" height="56" rx="10"/><text class="t" x="295" y="83" text-anchor="middle">SW2</text>
+      <rect class="po" x="118" y="51" width="124" height="54" rx="27"/>
+      <path class="fa" d="M110 67 H250"/><path class="fb" d="M110 91 H250"/>
+      <text class="s" x="180" y="43" text-anchor="middle">Po1（STP からは1本に見える）</text>
+      <text class="s" x="180" y="124" text-anchor="middle">通信 A は上、通信 B は下</text>
+      <text class="s" x="180" y="148" text-anchor="middle">使える帯域：2本分（1通信は1本分）</text>
+    </svg>
+  </figure>
+</div>
+
+<div class="callout warning">
+  <p>振り分けは<strong>フロー（通信）ごと</strong>（送信元・宛先のアドレスなどのハッシュ）。1つの通信が2本に分かれることはないので、1つのファイル転送が倍速になるわけではない。</p>
+</div>
+
+<h3>束ね方（モード）</h3>
+<table>
+  <thead><tr><th>方式</th><th>モード</th><th>特徴</th></tr></thead>
+  <tbody>
+    <tr><td>手動</td><td><code>on</code></td><td>ネゴシエーションしない。<strong>相手も <code>on</code></strong> でないと束ならない</td></tr>
+    <tr><td><strong>PAgP</strong>（Cisco 独自）</td><td><code>desirable</code>（誘う）／<code>auto</code>（誘われたら）</td><td></td></tr>
+    <tr><td><strong>LACP</strong>（IEEE 802.3ad）</td><td><code>active</code>（誘う）／<code>passive</code>（誘われたら）</td><td>標準なので<strong>他社の機器とも組める</strong>。最大 16 本（8本が稼働、8本が待機）</td></tr>
+  </tbody>
+</table>
+
+<p>両端のモードを選ぶと、束なるかどうかと理由が出る。下の表のマスを押しても選べる。</p>
+<div class="combo" data-combo="etherchannel"></div>
+
+<h3>束ねるために一致が必要なもの</h3>
+<p>メンバーのポートで、次の設定が<strong>すべて同じ</strong>でないと束ならない。</p>
+<ul>
+  <li><strong>速度とデュプレックス</strong></li>
+  <li>アクセスポートなら<strong>アクセス VLAN</strong>、トランクなら<strong>ネイティブ VLAN と許可 VLAN</strong></li>
+  <li><strong>L2 か L3 か</strong>（<code>switchport</code> か <code>no switchport</code>）</li>
+</ul>
+<div class="callout warning">
+  <p>1つでも違うと、そのポートは <strong>suspended（s）</strong> になって束から外れる。設定を直すときは、メンバーのポートではなく <strong>Port-channel 側</strong>を直すと、全メンバーにまとめて反映される。</p>
+</div>
+
+<h3>設定例</h3>
+<div class="tabs">
+  <div data-tab="L2 の EtherChannel">
+<pre data-cli="config">
+interface range GigabitEthernet1/0/1 - 2   ! 束ねるポートをまとめて選ぶ
+ channel-group 1 mode active   ! LACP で束ねる。Port-channel1 が自動で作られる
+!
+interface Port-channel1   ! 以後の設定はこちらに入れる（メンバーに反映される）
+ switchport mode trunk   ! L2 のトランクとして束ねる
+ switchport trunk allowed vlan 10,20,99   ! 運ぶ VLAN を決める
+</pre>
+  </div>
+  <div data-tab="L3 の EtherChannel">
+<pre data-cli="config">
+interface range GigabitEthernet1/0/3 - 4   ! 束ねるポートをまとめて選ぶ
+ no switchport   ! 先に L3 のポートにする（L2 と L3 は混ぜられない）
+ channel-group 2 mode active   ! LACP で束ねる。Port-channel2 が作られる
+!
+interface Port-channel2
+ no switchport   ! Port-channel も L3 にする
+ ip address 10.0.0.1 255.255.255.252   ! IP アドレスは Port-channel 側に付ける
+</pre>
+  </div>
+  <div data-tab="L2 と L3 の違い">
+    <table>
+      <thead><tr><th></th><th>L2 の EtherChannel</th><th>L3 の EtherChannel</th></tr></thead>
+      <tbody>
+        <tr><td>設定</td><td><strong><code>switchport</code></strong> のコマンドを使う</td><td><strong><code>no switchport</code></strong> にして、<strong>IP アドレス</strong>を付ける</td></tr>
+        <tr><td>役割</td><td>スイッチのポートと同じ。VLAN のフレームを運ぶ</td><td>ルータのインタフェースと同じ。ルーティングする</td></tr>
+        <tr><td>show の表示</td><td>Po1(<strong>S</strong>U)：S ＝ Layer2</td><td>Po2(<strong>R</strong>U)：R ＝ Layer3</td></tr>
+        <tr><td>よく使う場所</td><td>スイッチ同士をつないで、<strong>VLAN を延ばす</strong></td><td>L3 スイッチ同士やルータとの間を<strong>経路で分ける</strong>（STP が要らない）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+<p>振り分け方は <code>port-channel load-balance src-dst-ip</code> などで変える（送信元・宛先 IP の組でハッシュ）。</p>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show etherchannel summary">
+SW1# show etherchannel summary
+Group  Port-channel  Protocol    Ports
+------+-------------+-----------+-----------------------
+1      <span data-tip="(SU)：S ＝ L2、U ＝ 使用中。正常な状態。L3 なら (RU)">Po1(SU)</span>         <span data-tip="ネゴシエーションに使っているプロトコル。手動（on）なら「-」になる">LACP</span>      <span data-tip="(P)：束に入っている。正常">Gi1/0/1(P)</span>  <span data-tip="(s) なら suspended（設定の不一致で外された）、(I) なら stand-alone（相手とネゴシエーションできない）">Gi1/0/2(P)</span>
+</pre>
+<div class="keys">
+  <span class="key"><b>P</b>束に入っている</span>
+  <span class="key"><b>s</b>外されている（不一致）</span>
+  <span class="key"><b>I</b>単独で動いている</span>
+  <span class="key"><b>D</b>リンクダウン</span>
+  <span class="key"><b>S / R</b>L2 / L3</span>
+  <span class="key"><b>U</b>使用中</span>
+</div>
+<ul>
+  <li><code>show lacp neighbor</code>：相手の LACP の情報（相手が LACP を話しているか）</li>
+  <li><code>show etherchannel load-balance</code>：振り分け方</li>
+</ul>
+
+<h3>束ならないときの切り分け</h3>
+<div class="steps">
+  <details class="step">
+    <summary>メンバーが (I) stand-alone になる</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show lacp neighbor</code>（相手が LACP を話しているか）</dd>
+      <dt>原因</dt><dd>相手と<strong>ネゴシエーションできていない</strong>。passive ＋ passive、auto ＋ auto、LACP と PAgP の混在、相手が束ねる設定をしていない</dd>
+      <dt>直し方</dt><dd>少なくとも片方を <code>active</code>（PAgP なら <code>desirable</code>）にし、両端のプロトコルをそろえる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>メンバーが (s) suspended になる</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show interfaces Gi1/0/2 switchport</code>、<code>show running-config interface Gi1/0/2</code></dd>
+      <dt>原因</dt><dd>メンバー間で<strong>設定が違う</strong>（速度・デュプレックス、アクセス VLAN、ネイティブ VLAN、許可 VLAN、L2 と L3）</dd>
+      <dt>直し方</dt><dd>メンバーの設定をそろえる。以後の設定は <strong>Port-channel 側</strong>に入れる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>どのメンバーも束に入らず、ポートが止まっている</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show interfaces status err-disabled</code></dd>
+      <dt>原因</dt><dd>片方だけ <code>on</code> にしたため、ループを防ぐしくみが働いて <strong>err-disabled</strong> になった。またはリンクが落ちている</dd>
+      <dt>直し方</dt><dd>両端のモードをそろえ、<code>shutdown</code> → <code>no shutdown</code> で戻す</dd>
+    </dl>
+  </details>
+</div>
+
+<!-- ============================================================ -->
+<h2>3. STP</h2>
+
+<h3>何のための技術か</h3>
+<p>L2 のループは、ブロードキャストが<strong>回り続けて増え</strong>、ネットワーク全体を止める。STP は、ループになるリンクの<strong>1か所をブロックして木の形にする</strong>。</p>
+
+<h3>Cisco の STP の種類</h3>
+<table>
+  <thead><tr><th>種類</th><th>標準</th><th>特徴</th></tr></thead>
+  <tbody>
+    <tr><td>PVST+</td><td>Cisco</td><td><strong>VLAN ごと</strong>に STP の木を作る。昔の Cisco の既定</td></tr>
+    <tr><td><strong>Rapid PVST+</strong></td><td>Cisco</td><td><strong>VLAN ごと</strong>の RSTP。切替えが速い。<strong>よく使われる</strong></td></tr>
+    <tr><td>RSTP</td><td>IEEE 802.1w</td><td>速い STP。木は1つ</td></tr>
+    <tr><td><strong>MST</strong></td><td>IEEE 802.1s</td><td><strong>複数の VLAN をまとめたインスタンス</strong>ごとに木を作る。VLAN が多くても木の数が少なくて済む</td></tr>
+  </tbody>
+</table>
+
+<h3>ブリッジ ID</h3>
+<p><strong>ブリッジ ID ＝ 優先度 ＋ 拡張システム ID（VLAN 番号） ＋ MAC アドレス</strong>。小さいほうが勝つ。優先度の既定は <strong>32768</strong> で、<strong>4096 の倍数</strong>でしか設定できない。優先度と VLAN を変えて、show に出る値を確かめる。</p>
+<div class="bid-calc"></div>
+
+<h3>ルートブリッジとポートの決まり方</h3>
+<p>3台を三角形につないだ例（どのリンクも 1Gbps でコスト 4、SW1 のブリッジ ID が最小、SW2 が2番目）。</p>
+<figure class="fig">
+  <svg viewBox="0 0 640 270" role="img" aria-label="SW1がルートで、SW3のSW2側のポートが代替ポートとしてブロックされる三角形の図">
+    <rect class="sw" x="270" y="16" width="100" height="54" rx="10"/><text class="t" x="320" y="40" text-anchor="middle">SW1</text><text class="s" x="320" y="58" text-anchor="middle">ルートブリッジ</text>
+    <rect class="sw" x="80" y="196" width="100" height="54" rx="10"/><text class="t" x="130" y="228" text-anchor="middle">SW2</text>
+    <rect class="sw" x="460" y="196" width="100" height="54" rx="10"/><text class="t" x="510" y="228" text-anchor="middle">SW3</text>
+    <path class="fwd" d="M285 70 L150 196"/>
+    <path class="fwd" d="M355 70 L490 196"/>
+    <path class="fwd" d="M180 223 H330"/><path class="blk" d="M330 223 H460"/>
+    <rect class="pill" x="252" y="80" width="58" height="22" rx="11"/><text class="s acc" x="281" y="95" text-anchor="middle">Desg</text>
+    <rect class="pill" x="140" y="160" width="58" height="22" rx="11"/><text class="s okf" x="169" y="175" text-anchor="middle">Root</text>
+    <rect class="pill" x="330" y="80" width="58" height="22" rx="11"/><text class="s acc" x="359" y="95" text-anchor="middle">Desg</text>
+    <rect class="pill" x="442" y="160" width="58" height="22" rx="11"/><text class="s okf" x="471" y="175" text-anchor="middle">Root</text>
+    <rect class="pill" x="188" y="230" width="58" height="22" rx="11"/><text class="s acc" x="217" y="245" text-anchor="middle">Desg</text>
+    <rect class="pill" x="392" y="230" width="58" height="22" rx="11"/><text class="s ngf" x="421" y="245" text-anchor="middle">Altn</text>
+    <text class="s" x="395" y="214" text-anchor="middle">ブロック</text>
+  </svg>
+  <div class="cap">Root ＝ ルートポート（各スイッチに1つ）、Desg ＝ 指定ポート（各リンクに1つ）、Altn ＝ 代替ポート（ブロック）</div>
+</figure>
+
+<table>
+  <thead><tr><th>決めるもの</th><th>比べる順番</th></tr></thead>
+  <tbody>
+    <tr><td>ルートブリッジ</td><td><strong>ブリッジ ID が最小</strong></td></tr>
+    <tr><td>ルートポート（各スイッチに1つ）</td><td>① ルートまでの<strong>コストの合計が最小</strong> → ② 相手のブリッジ ID が最小 → ③ 相手のポート ID が最小</td></tr>
+    <tr><td>指定ポート（各リンクに1つ）</td><td>そのリンクで、ルートまでのコストが最小のスイッチのポート（同じならブリッジ ID が小さいほう）</td></tr>
+    <tr><td>残り</td><td><strong>代替ポート（Alternate）</strong>・<strong>バックアップポート</strong>として<strong>ブロック</strong></td></tr>
+  </tbody>
+</table>
+<p>図では、SW2 と SW3 の間のリンクで、ルートまでのコストはどちらも 4。ブリッジ ID が小さい SW2 の側が指定ポートになり、SW3 の側がブロックされる。</p>
+
+<div class="two">
+  <table>
+    <thead><tr><th>帯域</th><th>コスト（短い形式）</th></tr></thead>
+    <tbody>
+      <tr><td>10Mbps</td><td>100</td></tr>
+      <tr><td>100Mbps</td><td>19</td></tr>
+      <tr><td>1Gbps</td><td>4</td></tr>
+      <tr><td>10Gbps</td><td>2</td></tr>
+    </tbody>
+  </table>
+  <div class="callout tip">
+    <p>RSTP のポートの状態は <strong>Discarding・Learning・Forwarding</strong> の3つ。<strong>ポイントツーポイントのリンク</strong>では、隣のスイッチと<strong>提案と合意（proposal／agreement）</strong>をやり取りして、タイマーを待たずにすぐ転送を始める。</p>
+  </div>
+</div>
+
+<h3>設定例</h3>
+<div class="tabs">
+  <div data-tab="Rapid PVST+（VLAN ごとにルートを分ける）">
+<pre data-cli="config" data-title="SW1">
+spanning-tree mode rapid-pvst   ! Rapid PVST+ にする
+spanning-tree vlan 10 root primary   ! VLAN 10 のルートになる（優先度 24576）
+spanning-tree vlan 20 root secondary   ! VLAN 20 の予備のルート（優先度 28672）
+</pre>
+<pre data-cli="config" data-title="SW2">
+spanning-tree mode rapid-pvst
+spanning-tree vlan 20 root primary   ! VLAN 20 は SW2 をルートにする
+spanning-tree vlan 10 root secondary
+</pre>
+    <ul>
+      <li><code>root primary</code> は優先度を <strong>24576</strong>（いまのルートがそれ以下なら、さらに 4096 小さい値）にする。直接 <code>spanning-tree vlan 10 priority 4096</code> と書いてもよい</li>
+      <li>VLAN ごとにルートを分けると、<strong>VLAN ごとにブロックされるリンクが変わり、両方のリンクを使える</strong>（負荷分散）</li>
+      <li>ポート単位の調整は、インタフェースで <code>spanning-tree vlan 10 cost 10</code> や <code>spanning-tree vlan 10 port-priority 64</code></li>
+    </ul>
+  </div>
+  <div data-tab="MST">
+<pre data-cli="config">
+spanning-tree mode mst   ! MST にする
+spanning-tree mst configuration   ! リージョンの設定に入る
+ name REGION1   ! リージョン名
+ revision 1   ! リビジョン番号
+ instance 1 vlan 10,20   ! VLAN 10・20 をインスタンス 1 に
+ instance 2 vlan 30,40   ! VLAN 30・40 をインスタンス 2 に
+!
+spanning-tree mst 1 root primary   ! インスタンス 1 のルートになる
+</pre>
+    <div class="callout warning">
+      <p><strong>名前・リビジョン番号・VLAN とインスタンスの対応</strong>が<strong>すべて同じ</strong>スイッチが、同じ <strong>MST リージョン</strong>になる。1つでも違うと別のリージョンになり、意図どおりに動かない。どのインスタンスにも入れていない VLAN は、<strong>インスタンス 0（IST）</strong>に入る。</p>
+    </div>
+  </div>
+</div>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show spanning-tree vlan 10">
+SW1# show spanning-tree vlan 10
+
+VLAN0010
+  Spanning tree enabled protocol <span data-tip="rstp なら Rapid PVST+、ieee なら PVST+">rstp</span>
+  Root ID    Priority    24586
+             Address     aaaa.bbbb.0001
+             <span data-tip="このスイッチがルートブリッジ">This bridge is the root</span>
+  Bridge ID  Priority    <span data-tip="24576（root primary）＋ VLAN 番号 10">24586  (priority 24576 sys-id-ext 10)</span>
+             Address     aaaa.bbbb.0001
+
+Interface        <span data-tip="Root（ルートポート）、Desg（指定）、Altn（代替）、Back（バックアップ）">Role</span> <span data-tip="FWD（転送）、BLK（ブロック）、LRN（学習）">Sts</span> Cost      Prio.Nbr <span data-tip="P2p は全二重のリンク、Edge は PortFast のポート">Type</span>
+---------------- ---- --- --------- -------- ----------
+Gi1/0/23         Desg FWD 4         128.23   P2p
+Gi1/0/24         Desg FWD 4         128.24   P2p
+Gi1/0/1          Desg FWD 4         128.1    P2p Edge
+</pre>
+<ul>
+  <li><code>show spanning-tree root</code>：VLAN ごとのルートの一覧</li>
+  <li><code>show spanning-tree mst</code>：MST のインスタンスごとの状態</li>
+  <li><code>show spanning-tree summary</code>：モードや、保護機能が有効かどうか</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>4. STP の保護機能</h2>
+
+<figure class="fig">
+  <svg viewBox="0 0 640 150" role="img" aria-label="ディストリビューションスイッチの下向きのポートにルートガード、アクセススイッチのPC用ポートにPortFastとBPDUガードを置く図">
+    <rect class="sw" x="20" y="45" width="140" height="58" rx="10"/><text class="t" x="90" y="70" text-anchor="middle">ディストリ</text><text class="s" x="90" y="88" text-anchor="middle">（ルートブリッジ）</text>
+    <rect class="sw" x="290" y="45" width="140" height="58" rx="10"/><text class="t" x="360" y="70" text-anchor="middle">アクセス</text><text class="s" x="360" y="88" text-anchor="middle">スイッチ</text>
+    <rect class="pc" x="540" y="54" width="80" height="40" rx="8"/><text class="t" x="580" y="79" text-anchor="middle">PC</text>
+    <path class="ln" d="M160 74 H290"/><path class="ln" d="M430 74 H540"/>
+    <rect class="tag" x="165" y="30" width="100" height="24" rx="6"/><text class="s" x="215" y="46" text-anchor="middle">ルートガード</text>
+    <rect class="tag" x="432" y="22" width="106" height="40" rx="6"/><text class="s" x="485" y="38" text-anchor="middle">PortFast</text><text class="s" x="485" y="54" text-anchor="middle">BPDU ガード</text>
+    <text class="s" x="320" y="135" text-anchor="middle">ルートになってほしくない側へ向かうポートにルートガード、PC 用のポートに PortFast と BPDU ガード</text>
+  </svg>
+</figure>
+
+<table>
+  <thead><tr><th>機能</th><th>設定</th><th>動き</th><th>置く場所</th></tr></thead>
+  <tbody>
+    <tr><td><strong>PortFast</strong></td><td><code>spanning-tree portfast</code></td><td><strong>すぐ転送を始める</strong>（エッジポート）</td><td><strong>PC・サーバ用</strong>のポート</td></tr>
+    <tr><td><strong>BPDU ガード</strong></td><td><code>spanning-tree bpduguard enable</code></td><td>BPDU を受け取ったら<strong>ポートを止める（err-disabled）</strong></td><td>PortFast のポート</td></tr>
+    <tr><td>BPDU フィルタ</td><td><code>spanning-tree bpdufilter enable</code></td><td>BPDU を<strong>送受信しない</strong></td><td>使いどころは限られる（ループを見逃す危険）</td></tr>
+    <tr><td><strong>ルートガード</strong></td><td><code>spanning-tree guard root</code></td><td>より強い BPDU を受けたら<strong>ブロック</strong>（root-inconsistent）。届かなくなれば<strong>自動で戻る</strong></td><td>ルートになってほしくない機器へ向かう<strong>下向きのポート</strong></td></tr>
+    <tr><td>ループガード</td><td><code>spanning-tree guard loop</code></td><td>ルートポート・代替ポートで BPDU が<strong>届かなくなっても、転送に切り替えない</strong></td><td>上向きのポート（片方向だけ通じるリンクの対策）</td></tr>
+  </tbody>
+</table>
+
+<pre data-cli="config" data-title="まとめて有効にする（グローバル設定）">
+spanning-tree portfast default   ! アクセスポートすべてを PortFast に
+spanning-tree portfast bpduguard default   ! PortFast のポートすべてに BPDU ガード
+errdisable recovery cause bpduguard   ! err-disabled から自動で戻す（任意）
+</pre>
+
+<div class="callout tip">
+  <p><strong>err-disabled</strong> になったポートは <code>show interfaces status err-disabled</code> で探し、原因を取り除いてから <code>shutdown</code> → <code>no shutdown</code> で戻す。</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>確認問題</h2>
+<p>カードを押すと、裏返って答えが出る。</p>
+<div class="flashcards">
+  <div class="fc"><div class="fc-q">両端のポートを dynamic auto にした。トランクになるか</div><div class="fc-a"><strong>ならない</strong>（アクセスポートになる）。auto はどちらも自分からは誘わないから。片方を desirable か trunk にする。</div></div>
+  <div class="fc"><div class="fc-q">トランクに VLAN 30 を足そうとして switchport trunk allowed vlan 30 と打った。何が起きるか</div><div class="fc-a">許可 VLAN が <strong>30 だけに置き換わる</strong>。足すときは <code>allowed vlan add 30</code>。</div></div>
+  <div class="fc"><div class="fc-q">ネイティブ VLAN を、使わない VLAN（99 など）に変える理由</div><div class="fc-a">VLAN 1 には最初から端末が入っており、<strong>二重タグの攻撃</strong>に悪用されうるから。どのアクセスポートにも割り当てない VLAN にすれば、攻撃者がネイティブ VLAN に入れない。</div></div>
+  <div class="fc"><div class="fc-q">show etherchannel summary で、メンバーに (s) が付いている。何を疑うか</div><div class="fc-a"><strong>suspended</strong>。メンバー間で<strong>速度・デュプレックス・VLAN の設定</strong>が一致しているか。</div></div>
+  <div class="fc"><div class="fc-q">LACP で、両端を passive にした。束なるか</div><div class="fc-a"><strong>束ならない</strong>。どちらも自分からネゴシエーションを始めないから。片方を active にする。</div></div>
+  <div class="fc"><div class="fc-q">L3 の EtherChannel で、IP アドレスを付けるのはどこか</div><div class="fc-a"><strong>Port-channel 側</strong>。メンバーは no switchport にして channel-group に入れるだけ。</div></div>
+  <div class="fc"><div class="fc-q">VLAN 10 で、優先度を設定していないスイッチの show spanning-tree に出る優先度は</div><div class="fc-a"><strong>32778</strong>。既定の 32768 に、拡張システム ID の 10 が足される。</div></div>
+  <div class="fc"><div class="fc-q">PC 用のポートに BPDU ガードを設定する理由</div><div class="fc-a">利用者が<strong>スイッチを勝手につなぐ</strong>と、ループや STP の再計算が起きるおそれがある。BPDU を受けた時点でポートを止めて防ぐ。</div></div>
+  <div class="fc"><div class="fc-q">MST で、2台を同じリージョンにするために一致させるものは</div><div class="fc-a"><strong>リージョン名・リビジョン番号・VLAN とインスタンスの対応</strong>の3つ。</div></div>
+</div>
