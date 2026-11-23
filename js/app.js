@@ -811,7 +811,7 @@
       renderPager(path);
 
       const pageH1 = contentEl.querySelector("h1");
-      document.title = (pageH1 ? pageH1.textContent : meta ? meta.title : path) + " – Network Study Notes";
+      document.title = (pageH1 ? pageH1.textContent : meta ? meta.title : path) + " – Cisco Study Notes";
 
       const targetId = location.hash.split("#")[2];
       const target = targetId ? document.getElementById(targetId) : null;

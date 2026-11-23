@@ -1,8 +1,8 @@
-# Network Study Notes
+# Cisco Study Notes
 
-ネットワークの勉強シートを、ブラウザで読みやすく表示するための静的サイトです。今は **CCNP（ENCOR）** の勉強シートを置いています。
+Cisco の資格（CCNP など）の勉強シートを、ブラウザで読みやすく表示するための静的サイトです。今は **CCNP（ENCOR）** の勉強シートを置いています。
 
-- サイト: https://nnnaanaa.github.io/network-study-notes/
+- サイト: https://nnnaanaa.github.io/cisco-study-notes/
 - シートの置き場所: [ccnp/](ccnp/)
 
 ## シートを追加するとき
