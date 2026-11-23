@@ -22,6 +22,8 @@
   --ng-bg: #fdecea;
   --warn: #a8650a;
   --warn-bg: #fff4e0;
+  --info: #2563eb;
+  --info-bg: #eaf1ff;
   --radius: 10px;
 }
 
@@ -49,6 +51,8 @@
   --ng-bg: #2e1a1a;
   --warn: #f0b55a;
   --warn-bg: #2d2414;
+  --info: #7cb3ff;
+  --info-bg: #17223a;
 }
 
 * { box-sizing: border-box; }
@@ -460,6 +464,49 @@ a:hover { color: var(--accent-hover); }
   color: var(--text);
 }
 .markdown-body blockquote > :last-child { margin-bottom: 0; }
+
+/* 注意・ポイントの囲み（「> [!WARNING]」などで書く） */
+.markdown-body blockquote.callout {
+  --c: var(--accent);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--c);
+  border-radius: var(--radius);
+  padding: 0.7rem 1.1rem 0.75rem;
+}
+.markdown-body blockquote.callout-note { --c: var(--info); background: var(--info-bg); }
+.markdown-body blockquote.callout-tip { --c: var(--ok); background: var(--ok-bg); }
+.markdown-body blockquote.callout-important { --c: var(--accent); background: var(--accent-soft); }
+.markdown-body blockquote.callout-warning { --c: var(--warn); background: var(--warn-bg); }
+.markdown-body blockquote.callout-caution { --c: var(--ng); background: var(--ng-bg); }
+.callout-title { font-weight: 700; font-size: 0.85rem; color: var(--c); margin-bottom: 0.3rem; letter-spacing: 0.02em; }
+
+/* Cisco の設定（```config）と確認（```show） */
+.markdown-body pre.cli-config, .markdown-body pre.cli-show { padding-top: 2.1rem; }
+.markdown-body pre[data-label]::before {
+  content: attr(data-label);
+  position: absolute;
+  top: 0.55rem;
+  left: 0.9rem;
+  font-family: "Inter", "Noto Sans JP", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.06em;
+}
+.markdown-body pre.cli-config[data-label]::before { color: var(--accent); }
+.cli-top { color: var(--accent); font-weight: 600; }
+.cli-comment { color: var(--text-muted); }
+.cli-note { color: var(--ok); font-family: "Noto Sans JP", sans-serif; font-size: 0.8rem; }
+.cli-pair {
+  display: grid;
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
+  gap: 0.75rem;
+  margin: 0 0 1.5em;
+}
+.cli-pair > pre { margin: 0; }
+@media (max-width: 900px) {
+  .cli-pair { grid-template-columns: minmax(0, 1fr); }
+}
 
 /* 図（mermaid）。ダークテーマでも白地のカードにする */
 .markdown-body .mermaid-diagram {

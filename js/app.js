@@ -729,6 +729,65 @@
     }
   }
 
+  // ---- Cisco の資料向けの見せ方 ----
+  // 1) 「> [!WARNING]」などで始まる引用を、囲み（コールアウト）にする（GitHub の書き方と同じ）
+  // 2) ```config の行末の「  ! 説明」を説明として色分けする（コピーには含めない）
+  // 3) ```config のすぐ後に ```show が続いたら、左右に並べる
+  const CALLOUT_TITLES = { NOTE: "メモ", TIP: "ポイント", IMPORTANT: "重要", WARNING: "注意", CAUTION: "危険" };
+
+  function escapeText(t) {
+    return t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function enhanceBlocks(root) {
+    root.querySelectorAll("blockquote").forEach((bq) => {
+      const p = bq.firstElementChild;
+      if (!p || p.tagName !== "P") return;
+      const m = p.innerHTML.match(/^\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(<br\s*\/?>)?\s*/i);
+      if (!m) return;
+      const type = m[1].toUpperCase();
+      p.innerHTML = p.innerHTML.slice(m[0].length);
+      if (!p.textContent.trim()) p.remove();
+      bq.classList.add("callout", "callout-" + type.toLowerCase());
+      const title = document.createElement("div");
+      title.className = "callout-title";
+      title.textContent = CALLOUT_TITLES[type];
+      bq.prepend(title);
+    });
+
+    root.querySelectorAll("pre > code.language-config, pre > code.language-show").forEach((code) => {
+      const pre = code.parentElement;
+      const isConfig = code.classList.contains("language-config");
+      pre.classList.add(isConfig ? "cli-config" : "cli-show");
+      pre.dataset.label = isConfig ? "設定" : "確認";
+      if (!isConfig) return;
+      const lines = code.textContent.replace(/\n$/, "").split("\n");
+      pre.dataset.copy = lines.map((l) => l.replace(/\s+!\s.*$/, "")).join("\n") + "\n";
+      const parsed = lines.map((line) => line.match(/^(.*\S)\s+!\s(.*)$/));
+      const width = Math.max(0, ...parsed.filter(Boolean).map((m) => m[1].length));
+      code.innerHTML = lines.map((line, i) => {
+        const m = parsed[i];
+        const note = m && [m[0], m[1], " ".repeat(width - m[1].length + 3), m[2]];
+        const body = note ? note[1] : line;
+        let html;
+        if (/^\s*!/.test(body)) html = '<span class="cli-comment">' + escapeText(body) + "</span>";
+        else if (/^\S/.test(body)) html = '<span class="cli-top">' + escapeText(body) + "</span>";
+        else html = escapeText(body);
+        if (note) html += note[2] + '<span class="cli-note">← ' + escapeText(note[3]) + "</span>";
+        return html;
+      }).join("\n");
+    });
+
+    root.querySelectorAll("pre.cli-config").forEach((pre) => {
+      const next = pre.nextElementSibling;
+      if (!next || !next.matches("pre.cli-show")) return;
+      const wrap = document.createElement("div");
+      wrap.className = "cli-pair";
+      pre.before(wrap);
+      wrap.append(pre, next);
+    });
+  }
+
   function addCodeCopyButtons() {
     contentEl.querySelectorAll("pre").forEach((pre) => {
       if (pre.querySelector(".code-copy-btn")) return;
@@ -742,7 +801,7 @@
         '<svg class="icon icon-check" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5 6.5 12 13 4"/></svg>';
       btn.addEventListener("click", async () => {
         const code = pre.querySelector("code");
-        const text = code ? code.textContent : pre.textContent;
+        const text = pre.dataset.copy || (code ? code.textContent : pre.textContent);
         if (!(await copyToClipboard(text))) return;
         btn.classList.add("copied");
         btn.setAttribute("aria-label", "Copied");
@@ -802,7 +861,9 @@
       addPrintTools();
       if (meta && meta.dir) storageSet(LAST_DOC_KEY, path);
 
+      enhanceBlocks(contentEl);
       contentEl.querySelectorAll("pre code").forEach((block) => {
+        if (block.matches(".language-config, .language-show")) return;
         if (window.hljs) hljs.highlightElement(block);
       });
       addCodeCopyButtons();
