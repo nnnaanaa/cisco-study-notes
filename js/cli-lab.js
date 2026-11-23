@@ -694,7 +694,7 @@
     trunk: {
       title: "トランクを設定する",
       intro:
-        "<p>SW1 の <code>Gi1/0/24</code> は SW2 につながっている。SW2 側は<strong>トランクに固定、ネイティブ VLAN 99、DTP は停止</strong>の設定が済んでいる。SW1 には VLAN 10（SALES）と 20（DEV）だけがある。SW1 で次のように設定しよう。</p>",
+        "<p>SW1 の <code>Gi1/0/24</code> は SW2 につながっている。<br>SW2 側は<strong>トランクに固定、ネイティブ VLAN 99、DTP は停止</strong>の設定が済んでいる。<br>SW1 には VLAN 10（SALES）と 20（DEV）だけがある。</p><p>SW1 で次のように設定しよう。</p>",
       goals: [
         "VLAN 99 を作り、名前を NATIVE にする",
         "Gi1/0/24 をトランクに固定する",
@@ -717,7 +717,7 @@
         ["show interfaces trunk で trunking になっている", (st) => opTrunk(st, "Gi1/0/24")],
       ],
       hint:
-        "<p>VLAN は <code>vlan 99</code> で作り、続けて <code>name NATIVE</code>。インタフェースは <code>interface g1/0/24</code> で選ぶ。<code>switchport nonegotiate</code> は、<strong>先に mode を trunk にしてから</strong>でないと受け付けられない（dynamic のままだと DTP を止められない）。</p>",
+        "<p>VLAN は <code>vlan 99</code> で作り、続けて <code>name NATIVE</code>。<br>インタフェースは <code>interface g1/0/24</code> で選ぶ。<br><code>switchport nonegotiate</code> は、<strong>先に mode を trunk にしてから</strong>でないと受け付けられない（dynamic のままだと DTP を止められない）。</p>",
       answer: [
         "enable   ! 特権 EXEC モードへ",
         "configure terminal   ! 設定モードへ",
@@ -736,7 +736,7 @@
     etherchannel: {
       title: "LACP で EtherChannel を組む",
       intro:
-        "<p>SW1 の <code>Gi1/0/1</code>・<code>Gi1/0/2</code> は SW2 につながっている。SW2 側は<strong>2本を LACP の passive で Port-channel1 にまとめ、トランクにしてある</strong>。SW1 には VLAN 10・20 がある。SW1 で次のように設定しよう。</p>",
+        "<p>SW1 の <code>Gi1/0/1</code>・<code>Gi1/0/2</code> は SW2 につながっている。<br>SW2 側は<strong>2本を LACP の passive で Port-channel1 にまとめ、トランクにしてある</strong>。<br>SW1 には VLAN 10・20 がある。</p><p>SW1 で次のように設定しよう。</p>",
       goals: [
         "Gi1/0/1・Gi1/0/2 を LACP で束ね、Port-channel1 にする",
         "Port-channel1 をトランクに固定する",
@@ -759,7 +759,7 @@
         ["show etherchannel summary で Po1(SU)", (st) => !!st.ifs.Po1 && linkUp(st, "Po1")],
       ],
       hint:
-        "<p>2本まとめて選ぶには <code>interface range g1/0/1 - 2</code>。相手が <strong>passive</strong> なので、こちらが <strong>passive だと束ならない</strong>（どちらも誘わない）。束ねたあとの設定は <code>interface port-channel 1</code> に入れると、メンバーにも反映される。</p>",
+        "<p>2本まとめて選ぶには <code>interface range g1/0/1 - 2</code>。<br>相手が <strong>passive</strong> なので、こちらが <strong>passive だと束ならない</strong>（どちらも誘わない）。<br>束ねたあとの設定は <code>interface port-channel 1</code> に入れると、メンバーにも反映される。</p>",
       answer: [
         "enable",
         "configure terminal",
@@ -776,7 +776,7 @@
     stp: {
       title: "ルートブリッジを決める",
       intro:
-        "<p>SW1・SW2・SW3 が三角形につながっている（SW1 の <code>Gi1/0/23</code> → SW2、<code>Gi1/0/24</code> → SW3）。VLAN 10 は3台とも優先度が既定の 32768 で、<strong>MAC アドレスがいちばん小さい SW2</strong> がルートになっている。VLAN 20 は、SW2 に <code>root primary</code> が設定済み（優先度 24576）で、SW2 がルート。SW1 で次のように設定しよう。</p>",
+        "<p>SW1・SW2・SW3 が三角形につながっている（SW1 の <code>Gi1/0/23</code> → SW2、<code>Gi1/0/24</code> → SW3）。<br>VLAN 10 は、3台とも優先度が既定の 32768 で、<strong>MAC アドレスがいちばん小さい SW2</strong> がルートになっている。<br>VLAN 20 は、SW2 に <code>root primary</code> が設定済み（優先度 24576）で、SW2 がルートになっている。</p><p>SW1 で次のように設定しよう。</p>",
       goals: [
         "STP を Rapid PVST+ にする",
         "VLAN 10 では SW1 をルートブリッジにする",
@@ -801,7 +801,7 @@
         ["VLAN 20 のルートは SW2 のまま", (st) => { const s = stpVlan(st, 20); return !!s && s.root.name === "SW2"; }],
       ],
       hint:
-        "<p><code>spanning-tree vlan 10 root primary</code> と <code>spanning-tree vlan 20 root secondary</code> を使う。設定したあとに <code>show running-config</code> を見ると、<strong>root primary が priority の数字に置き換わって</strong>保存されているのが分かる。<code>show spanning-tree vlan 20</code> では、Gi1/0/24 の役割が変わっているかも見てみよう。</p>",
+        "<p><code>spanning-tree vlan 10 root primary</code> と <code>spanning-tree vlan 20 root secondary</code> を使う。<br>設定したあとに <code>show running-config</code> を見ると、<strong>root primary が priority の数字に置き換わって</strong>保存されているのが分かる。<br><code>show spanning-tree vlan 20</code> では、Gi1/0/24 の役割が変わっているかも見てみよう。</p>",
       answer: [
         "enable",
         "configure terminal",
