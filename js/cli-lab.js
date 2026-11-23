@@ -1718,6 +1718,40 @@
       result.hidden = true;
     }
 
+    // 打ったコマンドをブラウザに覚えておき、リロードしても同じ順で打ち直して続きから再開する
+    const KEY = "cliLab:" + (box.dataset.lab || lab.title);
+    const CTRL_Z = "^Z"; // Ctrl+Z を押したことを表す印（コマンドに ^ は使わないので区別できる）
+    let saved = [];
+    function save(entry) {
+      saved.push(entry);
+      if (saved.length > 500) saved = saved.slice(-500);
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (_) {}
+    }
+    function forget() {
+      saved = [];
+      try { localStorage.removeItem(KEY); } catch (_) {}
+    }
+    function restore() {
+      let list = [];
+      try { list = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch (_) {}
+      if (!Array.isArray(list) || !list.length) return;
+      saved = list.slice();
+      list.forEach((x) => (x === CTRL_Z ? ctrlZ("", true) : run(String(x), true)));
+      print("! 前回の続きから再開した（やり直すときは「最初から」）", "lab-muted");
+      refresh();
+      scroll();
+    }
+    function ctrlZ(typed, replay) {
+      if (!CONFIG_MODES.includes(st.mode)) return;
+      if (!replay) save(CTRL_Z);
+      echo(typed + "^Z");
+      const logs = [];
+      endConfig({ st, log: (m) => logs.push(m) });
+      logs.forEach((m) => print(m, "lab-log"));
+      refresh();
+      scroll();
+    }
+
     function ctxFor(line) {
       const tokens = tokenize(line);
       let mode = st.mode, offset = 0;
@@ -1729,8 +1763,9 @@
       return { tokens, mode, offset };
     }
 
-    function run(raw) {
+    function run(raw, replay) {
       curSt = st;
+      if (!replay) save(raw);
       echo(raw);
       // 「[no]: 」のような確認への答え
       if (st.pending) {
@@ -1855,13 +1890,8 @@
       else if (e.key.toLowerCase() === "z" && e.ctrlKey) {
         e.preventDefault();
         if (CONFIG_MODES.includes(st.mode)) {
-          echo(input.value + "^Z");
+          ctrlZ(input.value);
           input.value = "";
-          const logs = [];
-          endConfig({ st, log: (m) => logs.push(m) });
-          logs.forEach((m) => print(m, "lab-log"));
-          refresh();
-          scroll();
         }
       }
     });
@@ -1895,7 +1925,7 @@
       answer.hidden = !answer.hidden;
       bAns.classList.toggle("on", !answer.hidden);
     });
-    bReset.addEventListener("click", () => { reset(); input.focus({ preventScroll: true }); });
+    bReset.addEventListener("click", () => { forget(); hist = []; hi = 0; reset(); input.focus({ preventScroll: true }); });
 
     // 大きく表示: いまのページの上に、左に課題・右に大きな端末の窓を重ねて出す（後ろは暗くする）
     let holder = null, backdrop = null;
@@ -1985,6 +2015,7 @@
     bMax.addEventListener("click", (e) => { e.stopPropagation(); setFull(!box.classList.contains("lab-full")); });
 
     reset();
+    restore();
   }
 
   window.DocCliLab = {
