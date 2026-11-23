@@ -72,6 +72,15 @@
       pre.removeAttribute("data-cli");
       pre.replaceWith(term);
       term.appendChild(pre);
+      // 吹き出しの説明は紙に残らないので、印刷のときだけ出力の下に一覧で出す
+      const hots = [...pre.querySelectorAll("[data-tip]")];
+      if (hots.length) {
+        const notes = el("div", "print-only tip-notes", "<b>出力の見かた</b>");
+        const ul = el("ul");
+        hots.forEach((h) => ul.appendChild(el("li", "", "<code>" + esc(h.textContent.trim()) + "</code>：" + esc(h.dataset.tip))));
+        notes.appendChild(ul);
+        term.after(notes);
+      }
     });
   }
 
@@ -122,6 +131,7 @@
         b.addEventListener("click", () => select(i));
         bar.appendChild(b);
         pane.classList.add("tab-pane");
+        pane.prepend(el("div", "print-only tab-print-label", esc(pane.dataset.tab)));
       });
       box.prepend(bar);
       function select(i) {
@@ -282,7 +292,21 @@
     });
   }
 
+  // 印刷のときは、閉じた切り分けを開き、すべてのタブを出し、カードを表に戻す（終わったら元に戻す）
+  function beforePrint(root) {
+    root.querySelectorAll("details.step:not([open])").forEach((d) => { d.open = true; d.dataset.printOpened = "1"; });
+    root.querySelectorAll(".tab-pane[hidden]").forEach((p) => { p.hidden = false; p.dataset.printShown = "1"; });
+    root.querySelectorAll(".fc.flip").forEach((c) => { c.classList.remove("flip"); c.dataset.printFlipped = "1"; });
+  }
+  function afterPrint(root) {
+    root.querySelectorAll('[data-print-opened]').forEach((d) => { d.open = false; delete d.dataset.printOpened; });
+    root.querySelectorAll('[data-print-shown]').forEach((p) => { p.hidden = true; delete p.dataset.printShown; });
+    root.querySelectorAll('[data-print-flipped]').forEach((c) => { c.classList.add("flip"); delete c.dataset.printFlipped; });
+  }
+
   window.DocComponents = {
+    beforePrint,
+    afterPrint,
     init(root) {
       callouts(root);
       cliConfig(root);

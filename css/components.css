@@ -177,7 +177,32 @@
 }
 
 @media print {
-  .cli-copy, .combo-seg button { display: none; }
-  .fc-inner { transform: none !important; }
-  .fc-face { position: static; backface-visibility: visible; transform: none; margin-bottom: 6px; }
+  /* 端末風の黒い欄は、紙では白地・黒文字にする */
+  [data-theme] .markdown-body { --term-bg: #f6f7f9; --term-text: #1d2027; --term-muted: #6b7280; --term-accent: #4b30d1; }
+  .markdown-body .term, .cli-annot { border: 1px solid #c9ccd3; }
+  .markdown-body .term-bar { border-bottom-color: #d4d7de; }
+  .markdown-body .term-bar span { display: none; }
+  .markdown-body .term pre, .cli-annot-cmd { white-space: pre-wrap; overflow: visible; }
+  .cli-annot-row:hover .cli-annot-cmd { background: var(--term-bg); }
+  .markdown-body .hot { border-bottom: 1px dotted #888; background: none; }
+  .doc-tip { display: none !important; }
+
+  /* 部品の中の、紙では使えないもの */
+  .cli-copy, .combo-picker, .combo-result, .bid-inputs, .markdown-body .tab-bar, .fc-hint { display: none !important; }
+  .markdown-body .tab-print-label { font-weight: 700; color: var(--accent); margin: 0.6em 0 0.4em; font-size: 0.9em; }
+  .markdown-body .tab-pane { margin-bottom: 1em; }
+  .markdown-body .combo { padding: 8px 10px; }
+  .markdown-body details.step { break-inside: avoid; }
+
+  /* カードは「問」と「答」を並べて出す */
+  .markdown-body .fc { min-height: 0; break-inside: avoid; }
+  .fc-inner { min-height: 0; transform: none !important; }
+  .fc-face { position: static; backface-visibility: visible; -webkit-backface-visibility: visible; transform: none; }
+  .fc-front { border-bottom: 0; border-radius: 10px 10px 0 0; }
+  .fc-back { border-radius: 0 0 10px 10px; }
+  .fc-back::before { content: "答え"; font-weight: 700; font-size: 0.8em; color: var(--accent); }
+
+  /* 吹き出しの説明の一覧 */
+  .markdown-body .tip-notes { font-size: 0.85em; margin: -0.8em 0 1.4em; }
+  .markdown-body .tip-notes ul { margin: 0.2em 0 0; }
 }
