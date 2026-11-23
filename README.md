@@ -36,6 +36,7 @@ HTML の資料は、`<html>` や `<head>` を書かず、**本文だけ**を書�
 | ブリッジ ID の計算 | `<div class="bid-calc"></div>` |
 | 切り分け | `<details class="step"><summary>症状</summary><dl><dt>見る</dt><dd>…</dd>…</dl></details>` |
 | めくれるカード | `<div class="flashcards"><div class="fc"><div class="fc-q">問</div><div class="fc-a">答</div></div></div>` |
+| コマンドを打つ演習 | `<div class="cli-lab" data-lab="trunk"></div>`。演習の中身（課題・最初の状態・相手の機器・答え合わせ・模範解答）は [js/cli-lab.js](js/cli-lab.js) の `LABS` に書く。いまある演習は `trunk`・`etherchannel`・`stp`。演習で使えるコマンドも同じファイルの `DEFS` に足す |
 | 左右に並べる | `<div class="two">…</div>` |
 
 Markdown の資料（`.md`）も今までどおり使える。

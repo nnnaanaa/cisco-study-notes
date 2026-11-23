@@ -9,7 +9,7 @@
 ## アーキテクチャ
 
 - `index.html` — エントリーポイント。ヘッダー・サイドバー(ナビ)・本文・目次の4ペイン構成。
-- `docs.js` — `window.DOC_FILES` に `.md` または `.html` ファイルを手書きで列挙するだけの一覧ファイル（HTML の資料は本文だけを書き、`js/components.js` の部品を使う）。**`.md` を追加/削除/リネームしたら手動で1行編集する**（ビルドスクリプト不要）。要素は文字列（同一オリジンのローカルファイル）か `{ path, url }`（外部URL、例: 別リポジトリの raw.githubusercontent.com）のどちらか。
+- `docs.js` — `window.DOC_FILES` に `.md` または `.html` ファイルを手書きで列挙するだけの一覧ファイル（HTML の資料は本文だけを書き、`js/components.js` の部品と `js/cli-lab.js` のコマンド演習を使う）。**`.md` を追加/削除/リネームしたら手動で1行編集する**（ビルドスクリプト不要）。要素は文字列（同一オリジンのローカルファイル）か `{ path, url }`（外部URL、例: 別リポジトリの raw.githubusercontent.com）のどちらか。
 - `css/style.css` — CSS変数によるライト/ダークテーマ。カラーパレットは `#190482` `#7752FE` `#8E8FFA` `#C2D9FF`。フォントは Google Fonts の Inter（+ 和文は OS 標準フォント）。
 - `js/app.js` — `docs.js` の `DOC_FILES` を読み込んでナビツリーを構築する。選択された `.md` は `fetch` して [marked](https://github.com/markedjs/marked) でレンダリング、[DOMPurify](https://github.com/cure53/DOMPurify) でサニタイズする。ルーティングは `location.hash`（例: `#/docs/foo.md`）。
 - ナビの初期タイトルはファイル名由来。ドキュメントを開くと本文の `# 見出し` を読み取ってタイトルを更新し `localStorage` にキャッシュする。

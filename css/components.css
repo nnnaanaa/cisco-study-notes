@@ -181,6 +181,42 @@
 .fc-back { background: var(--accent-soft); transform: rotateY(180deg); }
 .fc:focus-visible .fc-face { border-color: var(--accent); }
 
+/* コマンドを打って試す演習（div.cli-lab、js/cli-lab.js） */
+.markdown-body .cli-lab { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px 16px; margin: 1.2rem 0 1.8rem; }
+.lab-head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.lab-head b { color: var(--text-strong); }
+.lab-tag { font-size: 0.72rem; font-weight: 700; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px; }
+.markdown-body .lab-task p { margin: 0.4rem 0; }
+.markdown-body .lab-task ol { margin: 0.3rem 0 0.9rem; }
+.markdown-body .lab-term { margin: 0 0 10px; }
+.lab-screen { height: 340px; overflow-y: auto; scrollbar-color: #3a3e48 transparent; padding: 10px 16px 12px; font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); cursor: text; }
+.lab-out > div { white-space: pre-wrap; word-break: break-word; }
+.lab-p, .lab-prompt { color: var(--term-accent); }
+.lab-muted { color: var(--term-muted); }
+.lab-log { color: #d9b86c; }
+.lab-line { display: flex; align-items: baseline; }
+.lab-prompt { white-space: pre; }
+.markdown-body input.lab-in { flex: 1; min-width: 0; height: auto; background: transparent; border: 0; outline: 0; box-shadow: none; color: var(--term-text); font: inherit; padding: 0; margin: 0; caret-color: var(--term-accent); }
+.lab-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.lab-actions button { height: 34px; border: 1px solid var(--border-strong); background: var(--bg-elevated); color: var(--text); border-radius: 8px; padding: 0 14px; font: inherit; font-size: 0.86rem; font-weight: 600; cursor: pointer; }
+.lab-actions button:hover, .lab-actions button.on { border-color: var(--accent); color: var(--accent); }
+.lab-actions button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lab-actions button.primary:hover { background: var(--accent-hover); color: #fff; }
+[data-theme="dark"] .lab-actions button.primary, [data-theme="dark"] .lab-actions button.primary:hover { color: #111418; }
+.markdown-body .lab-result { margin-top: 12px; }
+.markdown-body .lab-result .lab-sum { margin: 0 0 4px; font-weight: 700; }
+.markdown-body .lab-result .lab-sum.ok { color: var(--ok); }
+.markdown-body .lab-result .lab-sum.ng { color: var(--ng); }
+.markdown-body .lab-result ul { list-style: none; padding: 0; margin: 0; }
+.markdown-body .lab-result li { padding-left: 1.5em; position: relative; margin: 2px 0; }
+.markdown-body .lab-result li::before { position: absolute; left: 0.2em; font-weight: 700; }
+.markdown-body .lab-result li.ok::before { content: "✓"; color: var(--ok); }
+.markdown-body .lab-result li.ng { color: var(--text-muted); }
+.markdown-body .lab-result li.ng::before { content: "✗"; color: var(--ng); }
+.markdown-body .lab-hint { margin: 12px 0 0; }
+.markdown-body .lab-answer { margin-top: 12px; }
+.markdown-body .lab-answer .cli-annot-wrap { margin-bottom: 0; }
+
 @media (max-width: 720px) {
   .markdown-body .fig-row, .markdown-body .two, .cli-annot-row { grid-template-columns: minmax(0, 1fr); }
   .combo-picker { grid-template-columns: minmax(0, 1fr); }
@@ -217,4 +253,9 @@
   /* 吹き出しの説明の一覧 */
   .markdown-body .tip-notes { font-size: 0.85em; margin: -0.8em 0 1.4em; }
   .markdown-body .tip-notes ul { margin: 0.2em 0 0; }
+
+  /* 演習は、課題と模範解答だけを出す */
+  .lab-term, .lab-actions, .lab-result, .lab-hint { display: none !important; }
+  .markdown-body .lab-answer[hidden] { display: block; }
+  .markdown-body .cli-lab { break-inside: avoid; }
 }

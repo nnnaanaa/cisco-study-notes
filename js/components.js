@@ -308,6 +308,8 @@
     beforePrint,
     afterPrint,
     init(root) {
+      // 演習（js/cli-lab.js）は中に囲みや注釈付きの設定を作るので、いちばん先に組み立てる
+      if (window.DocCliLab) window.DocCliLab.init(root);
       callouts(root);
       cliConfig(root);
       cliShow(root);
