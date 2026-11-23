@@ -3,112 +3,19 @@
 //
 // 書き方は2通り:
 //   1. 文字列: このサイトと同じ場所に置いたローカルの .md ファイル
-//        "README.md"
-//   2. オブジェクト { path, url, title, summary }: 別リポジトリなど外部の .md ファイル
-//      （url は raw.githubusercontent.com など CORS を許可しているURLを指定する）
-//      （title は任意。ナビゲーションに表示する短い名前。省略時は本文の見出しから自動で決まる）
-//      （summary は任意。ナビゲーションのタイトル下とページ冒頭に表示される一行説明）
-//        { path: "ipaddr.md", url: "https://raw.githubusercontent.com/<owner>/<repo>/<branch>/ipaddr.md", title: "サブネット計算例", summary: "サブネット計算の実例" }
+//        "ccnp/encor/00-overview.md"
+//   2. オブジェクト { path, title, summary }: ナビに出す短い名前と一行説明を付けるとき
+//        { path: "ccnp/encor/00-overview.md", title: "全体像", summary: "6分野とネスペとの重なり" }
 //
-// nnnaanaa/document のファイルは doc("リポジトリ内のパス", "表示名", "一行説明") と書けば、
-// 同じパスでナビゲーションにフォルダ構成ごと表示される（例: network/lan/poe.md）。
-// 並び順はこのファイルに書いた順になる。
-const DOC_BASE = "https://raw.githubusercontent.com/nnnaanaa/document/main/";
-const doc = (path, title, summary) => ({ path, url: DOC_BASE + path, title, summary });
+// 並び順はこのファイルに書いた順になる。先頭の資料がトップページになる。
+const doc = (path, title, summary) => ({ path, title, summary });
 
 // ナビゲーションに表示するフォルダ名（未指定のフォルダはそのままの名前で表示される）
 window.DOC_FOLDER_LABELS = {
-  network: "ネットワーク",
-  "ip-address": "IPアドレス",
-  lan: "LAN・L2",
-  "wan-vpn": "WAN・VPN",
-  routing: "ルーティング",
-  redundancy: "冗長化・負荷分散",
-  operation: "運用管理",
-  protocol: "プロトコル",
-  security: "セキュリティ",
-  review: "復習",
-  final: "直前シート",
+  ccnp: "CCNP",
+  encor: "ENCOR",
 };
 
 window.DOC_FILES = [
-  "README.md",
-
-  doc("network/final/subnet.md", "サブネット計算 直前シート", "公式・ブロック幅・例"),
-  doc("network/final/ipv6.md", "IPv6 直前シート", "アドレス・NDP・PMTUD・移行技術の要点"),
-  doc("network/final/l2-redundancy.md", "L2 冗長化 直前シート", "STP/RSTP・エッジポート・LAG の要点"),
-  doc("network/final/vxlan.md", "VXLAN 直前シート", "VNI・MTU・Leaf-Spine・EVPN の要点"),
-  doc("network/final/wifi.md", "無線LAN 直前シート", "規格・DFS・CSMA/CA・WPA3・802.1X の要点"),
-  doc("network/final/ipsec.md", "IPsec 直前シート", "ESP/IKE・SA・NAT トラバーサル・MSS の要点"),
-  doc("network/final/sd-wan.md", "SD-WAN 直前シート", "コントローラ・アプリ別経路・ブレイクアウトの要点"),
-  doc("network/final/ospf.md", "OSPF 直前シート", "コスト・DR/BDR・エリア・LSA の要点"),
-  doc("network/final/bgp.md", "BGP 直前シート", "iBGP/eBGP・属性・経路制御の要点"),
-  doc("network/final/multicast.md", "マルチキャスト 直前シート", "アドレス・IGMP・PIM・RPF の要点"),
-  doc("network/final/vrrp.md", "VRRP 直前シート", "マスタ選出・GARP・トラッキングの要点"),
-  doc("network/final/lb-proxy.md", "負荷分散・プロキシ 直前シート", "セッション維持・DSR・GSLB・プロキシの要点"),
-  doc("network/final/ops-monitoring.md", "運用・監視 直前シート", "SNMP・Syslog・フロー情報の要点"),
-  doc("network/final/calculation.md", "計算問題 直前シート", "公式と覚えておく数"),
-  doc("network/final/tcp-qos.md", "TCP・QoS 直前シート", "MSS・再送・輻輳制御・マーキングの要点"),
-  doc("network/final/dhcp-nat.md", "DHCP・NAT 直前シート", "4つのメッセージ・リレー・NAPT の要点"),
-  doc("network/final/dns.md", "DNS 直前シート", "レコード・TTL・ゾーン転送・攻撃と対策の要点"),
-  doc("network/final/mail.md", "メール 直前シート", "ポート・SPF/DKIM/DMARC の要点"),
-  doc("network/final/iot.md", "IoT 直前シート", "LPWA・MQTT・CoAP の要点"),
-  doc("network/final/auth-pki.md", "認証・PKI 直前シート", "証明書・TLS・RADIUS・Kerberos・SAML の要点"),
-  doc("network/final/security.md", "セキュリティ 直前シート", "FW・DMZ・IPS・DoS・標的型攻撃の要点"),
-
-  doc("network/ip-address/subnet-cheatsheet.md", "サブネット計算暗記シート", "サブネット計算の公式・早見表まとめ"),
-  doc("network/ip-address/ipaddr.md", "サブネット計算の実例", "サブネットマスク計算の実例2パターン"),
-  doc("network/ip-address/ipv6.md", "IPv6 暗記シート", "IPv6のアドレス・NDP・SLAAC/DHCPv6・移行技術まとめ"),
-
-  doc("network/lan/ethernet-types.md", "イーサネット規格", "10BASE-T等イーサネット規格と伝送速度"),
-  doc("network/lan/poe.md", "PoE", "PoE規格(802.3af/at/bt)と給電電力"),
-  doc("network/lan/ieee802x.md", "IEEE 802.X 規格一覧", "試験に頻出するIEEE802.X規格一覧"),
-  doc("network/lan/lag-stp.md", "LAG・STP", "LAGとSTP(ポート役割/ステータス/RSTP/MSTP)"),
-  doc("network/lan/l2-redundancy.md", "L2 冗長化 暗記シート", "ループ・STP/RSTP/MSTP・リンクアグリゲーション・スタックまとめ"),
-  doc("network/lan/vlan-vxlan.md", "VLAN・VXLAN", "802.1QタグVLANとVXLAN/VTEP/EVPN"),
-  doc("network/lan/vxlan.md", "VXLAN 暗記シート", "VXLANのヘッダ・MTU・Leaf-Spine・EVPN・ESIまとめ"),
-  doc("network/lan/wifi.md", "無線LAN", "Wi-Fi規格・用語・変調/暗号化方式まとめ"),
-  doc("network/lan/wifi-cheatsheet.md", "無線LAN 暗記シート", "規格・チャネル/DFS・CSMA/CA・WPA3/802.1X・WLC・ローミングまとめ"),
-
-  doc("network/wan-vpn/wan-vpn.md", "WAN・VPNの分類", "WAN/VPNの分類とインターネット経由の有無"),
-  doc("network/wan-vpn/mpls.md", "IP-VPN・MPLS", "IP-VPNを支えるMPLSのラベル転送と用語"),
-  doc("network/wan-vpn/ipsec.md", "IPsec 暗記シート", "ESP/IKE・SA・モード・NATトラバーサル・MSS調整・冗長化と答えの型まとめ"),
-  doc("network/wan-vpn/ppp.md", "PPP・PPPoE", "PPPの認証(PAP/CHAP)とPPPoEのフレーム構造"),
-  doc("network/wan-vpn/sd-wan.md", "SD-WAN 暗記シート", "SD-WANの構成・アプリ別経路制御・ローカルブレイクアウト・SASEまとめ"),
-
-  doc("network/routing/igp.md", "RIP・OSPF", "RIPとOSPFのしくみ・エリア・LSA"),
-  doc("network/routing/ospf.md", "OSPF 暗記シート", "OSPFのコスト・ネイバー・DR/BDR・エリア・LSA・集約まとめ"),
-  doc("network/routing/bgp.md", "BGP", "BGPメッセージ・パスアトリビュート・AS番号"),
-  doc("network/routing/bgp-cheatsheet.md", "BGP 暗記シート", "iBGP/eBGP・最適経路の選択・経路制御・セキュリティまとめ"),
-  doc("network/routing/reliability.md", "ECMP・BFD", "ECMPによる負荷分散とBFDの死活監視"),
-  doc("network/routing/multicast.md", "マルチキャスト 暗記シート", "アドレス・MAC対応・IGMP・IGMPスヌーピング・PIM・RPFまとめ"),
-
-  doc("network/redundancy/vrrp.md", "VRRP 暗記シート", "仮想IP/MAC・マスタ選出・切替え・トラッキング・プリエンプトまとめ"),
-  doc("network/redundancy/load-balancer.md", "ロードバランサー", "LBの基本機能・セッション維持・DSR・GSLB"),
-  doc("network/redundancy/lb-proxy.md", "負荷分散・プロキシ 暗記シート", "セッション維持・ヘルスチェック・DSR・GSLB・プロキシ・CDNまとめ"),
-
-  doc("network/operation/qos.md", "QoS", "帯域/優先度制御・DiffServ・CoS/DSCP"),
-  doc("network/operation/monitoring.md", "監視（SNMP・Syslog等）", "LLDP・SNMP(MIB/メッセージ/Version)・Syslog・IPFIX"),
-  doc("network/operation/ops-monitoring.md", "運用・監視 暗記シート", "SNMP・Syslog・NTP・フロー情報・ミラーポート・障害の切り分けまとめ"),
-  doc("network/operation/calculation.md", "計算問題 暗記シート", "伝送時間・稼働率・待ち行列・呼量・VoIP帯域などの公式と例題"),
-
-  doc("network/protocol/tcp.md", "TCP", "TCPヘッダ・フラグ・再送/ウィンドウ制御"),
-  doc("network/protocol/tcp-qos.md", "TCP・QoS 暗記シート", "再送・フロー/輻輳制御・MSS・マーキング・シェーピングまとめ"),
-  doc("network/protocol/udp.md", "UDP", "UDPヘッダ構造(8Byte固定)"),
-  doc("network/protocol/well-known-ports.md", "ウェルノウンポート", "代表的なポート番号と用途の一覧"),
-  doc("network/protocol/dhcp.md", "DHCP", "DHCPの仕組みと4つのメッセージ"),
-  doc("network/protocol/dhcp-nat.md", "DHCP・NAT 暗記シート", "4つのメッセージ・リレー・スヌーピング・NAPT・ヘアピンNATまとめ"),
-  doc("network/protocol/dns.md", "DNS 暗記シート", "名前解決・レコード・TTL・構成・DNSへの攻撃と対策まとめ"),
-  doc("network/protocol/http.md", "HTTP", "ステータスコード・ヘッダー・認証方式"),
-  doc("network/protocol/tls.md", "TLS", "TLS1.2/1.3のネゴシエーション比較"),
-  doc("network/protocol/email-header.md", "電子メールのヘッダ", "電子メールヘッダの構造と偽装可能性"),
-  doc("network/protocol/mail-security.md", "送信ドメイン認証", "SPF/DKIM/DMARCによる送信ドメイン認証"),
-  doc("network/protocol/mail.md", "メール 暗記シート", "SMTP・MX・エンベロープ・OP25B・SPF/DKIM/DMARCまとめ"),
-  doc("network/protocol/voip.md", "VoIP", "VoIPのSIP/RTPによる通話の流れと音声符号化"),
-  doc("network/protocol/iot.md", "IoT 暗記シート", "LPWA（LTE-M・NB-IoT・LoRaWAN）・MQTT・CoAPまとめ"),
-
-  doc("network/security/auth-pki.md", "認証・PKI 暗記シート", "暗号・証明書・TLS・RADIUS/802.1X・Kerberos・SAML/OAuthまとめ"),
-  doc("network/security/security.md", "セキュリティ 暗記シート", "FW・DMZ・NAT・IDS/IPS・DoS・標的型攻撃と対策まとめ"),
-
-  doc("network/review/gogo-miss.md", "午後 単語集の復習", "一問一答で間違えた問題の答えと覚え方（四択問題で繰り返せる）"),
+  doc("ccnp/encor/00-overview.md", "ENCOR 全体像", "6分野の配点とネスペとの重なり、新しく勉強する技術"),
 ];

@@ -261,125 +261,9 @@
     navTreeEl.querySelectorAll("a").forEach((a) => {
       a.classList.toggle("active", a.dataset.path === current);
     });
-    const quizLink = document.getElementById("quizLink");
-    if (quizLink) quizLink.classList.toggle("active", isQuizPath(current));
-    const keywordsLink = document.getElementById("keywordsLink");
-    if (keywordsLink) keywordsLink.classList.toggle("active", isKeywordsPath(current));
-    const homeLink = document.getElementById("homeLink");
-    if (homeLink) homeLink.classList.toggle("active", isHomePath(current));
-    const tangoLink = document.getElementById("tangoLink");
-    if (tangoLink) tangoLink.classList.toggle("active", isTangoPath(current));
-    const writingLink = document.getElementById("writingLink");
-    if (writingLink) writingLink.classList.toggle("active", isWritingPath(current));
-  }
-
-  function isWritingPath(path) {
-    return path === "kijutsu" || path.startsWith("kijutsu/");
-  }
-
-  // 記述の練習: 各資料の「答えの型」の表から出題する
-  function renderWritingPage() {
-    enterAppPage("記述の練習");
-    if (!window.DocWriting) {
-      contentEl.innerHTML = '<p class="error">記述の練習を読み込めませんでした。</p>';
-    } else {
-      window.DocWriting.render(contentEl, { manifest, folderLabel });
-    }
-    highlightActiveNav();
-  }
-
-  function isTangoPath(path) {
-    return path === "tango" || path.startsWith("tango/");
-  }
-
-  // 過去問の単語帳は「キーワードをながめる」と同じ画面を単語帳のデータで表示する
-  function renderTangoPage(path) {
-    enterAppPage("過去問の単語帳");
-    if (!window.DocKeywords) {
-      contentEl.innerHTML = '<p class="error">単語帳を読み込めませんでした。</p>';
-    } else {
-      const route = path.slice("tango/".length);
-      const scope = route.startsWith("@") ? route.slice(1) : "";
-      window.DocKeywords.render(contentEl, { manifest, folderLabel, scope, mode: "tango" });
-    }
-    highlightActiveNav();
   }
 
   const LAST_DOC_KEY = "doc-viewer-last";
-
-  function isHomePath(path) {
-    return !path || path === "home";
-  }
-
-  function isKeywordsPath(path) {
-    return path === "keywords" || path.startsWith("keywords/");
-  }
-
-  // 資料以外の画面（ホーム・四択問題・キーワード）に切り替えるときの共通処理
-  function enterAppPage(title) {
-    if (tocObserver) tocObserver.disconnect();
-    tocEl.innerHTML = "";
-    if (docPagerEl) docPagerEl.hidden = true;
-    document.title = title + " – Network Study Notes";
-    scrollContentTo(null, false);
-  }
-
-  function renderHomePage() {
-    enterAppPage("学習ホーム");
-    if (!window.DocHome) {
-      contentEl.innerHTML = '<p class="error">ホーム画面を読み込めませんでした。</p>';
-    } else {
-      window.DocHome.render(contentEl, { manifest, folderLabel, lastPath: storageGet(LAST_DOC_KEY) });
-    }
-    highlightActiveNav();
-  }
-
-  function renderKeywordsPage(path) {
-    enterAppPage("キーワードをながめる");
-    if (!window.DocKeywords) {
-      contentEl.innerHTML = '<p class="error">キーワードデータを読み込めませんでした。</p>';
-    } else {
-      const route = path.slice("keywords/".length);
-      const scope = route.startsWith("@") ? route.slice(1) : "";
-      window.DocKeywords.render(contentEl, { manifest, folderLabel, scope });
-    }
-    highlightActiveNav();
-  }
-
-  function isQuizPath(path) {
-    return path === "quiz" || path.startsWith("quiz/");
-  }
-
-  function renderQuizPage(path) {
-    enterAppPage("四択問題");
-    if (!window.DocQuiz) {
-      contentEl.innerHTML = '<p class="error">問題データを読み込めませんでした。</p>';
-    } else {
-      window.DocQuiz.render(contentEl, { route: path.slice("quiz/".length), manifest, folderLabel });
-    }
-    highlightActiveNav();
-  }
-
-  // 資料の末尾に、その資料の確認問題へのボタンを置く
-  function appendQuizCta(path) {
-    const n = window.DocQuiz ? window.DocQuiz.count(path) : 0;
-    if (!n) return;
-    const box = document.createElement("div");
-    box.className = "quiz-cta";
-    const text = document.createElement("div");
-    text.className = "quiz-cta-text";
-    const strong = document.createElement("strong");
-    strong.textContent = "理解度をチェック";
-    const sub = document.createElement("span");
-    sub.textContent = "この資料の内容から " + n + " 問の四択問題を出題します。";
-    text.append(strong, sub);
-    const a = document.createElement("a");
-    a.className = "quiz-cta-button";
-    a.href = "#/quiz/" + path;
-    a.textContent = "確認問題を解く";
-    box.append(text, a);
-    contentEl.appendChild(box);
-  }
 
   // ---- Search ----
   // 本文中でヒットした箇所の前後を抜粋し、一致部分を <mark> で強調したスニペットを作る
@@ -890,26 +774,12 @@
   }
 
   async function renderPath(path) {
-    if (window.DocKeywords) window.DocKeywords.stop();
-    if (isTangoPath(path)) {
-      renderTangoPage(path);
-      return;
-    }
-    if (isHomePath(path)) {
-      renderHomePage();
-      return;
-    }
-    if (isQuizPath(path)) {
-      renderQuizPage(path);
-      return;
-    }
-    if (isKeywordsPath(path)) {
-      renderKeywordsPage(path);
-      return;
-    }
-    if (isWritingPath(path)) {
-      renderWritingPage();
-      return;
+    // トップ（#/）は、docs.js の先頭の資料を開く
+    if (!path || path === "home") {
+      if (manifest.length) {
+        location.replace("#/" + manifest[0].path);
+        return;
+      }
     }
 
     contentEl.innerHTML = '<p class="loading">読み込み中…</p>';
@@ -929,7 +799,6 @@
       fixCjkEmphasis(contentEl);
       renderMermaid(contentEl);
       decorateDocument(meta);
-      appendQuizCta(path);
       addPrintTools();
       if (meta && meta.dir) storageSet(LAST_DOC_KEY, path);
 
