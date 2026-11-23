@@ -1,6 +1,10 @@
 /* HTML の資料で使う部品（js/components.js）の見た目。色は style.css の変数を使い、ダークテーマにも合わせる */
 
 .markdown-body {
+  /* 端末風の欄（設定・出力）は、すべてこのフォント・大きさ・行の間隔にそろえる */
+  --mono: ui-monospace, "SFMono-Regular", Consolas, "Noto Sans JP", monospace;
+  --mono-size: 0.84rem;
+  --mono-line: 1.55;
   --term-bg: #1b1d23;
   --term-text: #e4e6eb;
   --term-muted: #8a909c;
@@ -65,7 +69,7 @@
 .cli-annot { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .cli-annot-title { background: var(--term-bg); color: var(--term-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; padding: 6px 14px; border-bottom: 1px solid #2a2d35; }
 .cli-annot-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
-.cli-annot-cmd { background: var(--term-bg); color: var(--term-text); font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 0.84rem; line-height: 1.55; padding: 3px 14px; white-space: pre; overflow-x: auto; }
+.cli-annot-cmd { background: var(--term-bg); color: var(--term-text); font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); padding: 3px 14px; white-space: pre; overflow-x: auto; }
 .cli-annot-cmd .top { color: var(--term-accent); font-weight: 600; }
 .cli-annot-cmd .sep { color: var(--term-muted); }
 .cli-annot-note { padding: 3px 14px; font-size: 0.84rem; line-height: 1.55; background: var(--bg-elevated); border-top: 1px dashed var(--border); }
@@ -82,7 +86,8 @@
 .markdown-body .term-bar { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid #2a2d35; }
 .markdown-body .term-bar span { width: 10px; height: 10px; border-radius: 50%; background: #3a3e48; }
 .markdown-body .term-bar b { margin-left: 8px; color: var(--term-muted); font-size: 0.75rem; font-weight: 600; }
-.markdown-body .term pre { margin: 0; background: none; border: 0; border-radius: 0; color: inherit; padding: 12px 16px 14px; font-size: 0.84rem; }
+.markdown-body .term pre { margin: 0; background: none; border: 0; border-radius: 0; color: inherit; padding: 12px 16px 14px; font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); }
+.markdown-body .term pre * { font-family: inherit; font-size: inherit; }
 .markdown-body .term pre code { color: inherit; }
 .markdown-body .term .term-prompt { color: var(--term-accent); }
 .markdown-body .term .code-copy-btn { background: #24262d; border-color: #3a3e48; color: var(--term-muted); }
@@ -97,7 +102,7 @@
 /* 記号の説明のラベル */
 .markdown-body .keys { display: flex; flex-wrap: wrap; gap: 8px; margin: -0.6em 0 1.5em; }
 .markdown-body .key { border: 1px solid var(--border); border-radius: 8px; padding: 3px 10px; font-size: 0.82rem; background: var(--bg-elevated); }
-.markdown-body .key b { font-family: ui-monospace, Consolas, monospace; color: var(--accent); margin-right: 6px; }
+.markdown-body .key b { font-family: var(--mono); color: var(--accent); margin-right: 6px; }
 
 /* 左右に並べる */
 .markdown-body .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin: 0 0 1.5em; }
@@ -141,7 +146,7 @@
 .bid-inputs label { display: flex; flex-direction: column; font-size: 0.78rem; color: var(--text-muted); font-weight: 600; gap: 4px; }
 .bid-inputs select, .bid-inputs input { font: inherit; font-size: 0.92rem; padding: 5px 8px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--bg); color: var(--text); width: 140px; }
 .bid-out { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
-.bid-eq { font-family: ui-monospace, Consolas, monospace; font-size: 1.15rem; }
+.bid-eq { font-family: var(--mono); font-size: 1.15rem; }
 .bid-eq b { color: var(--accent); }
 .bid-note { color: var(--text-muted); font-size: 0.85rem; }
 
