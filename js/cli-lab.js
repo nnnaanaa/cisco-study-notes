@@ -825,7 +825,11 @@
     const head = el("div", "lab-head", '<span class="lab-tag">やってみる</span><b>' + esc(lab.title) + "</b>");
     const task = el("div", "lab-task", lab.intro + "<ol>" + lab.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ol>");
     const term = el("div", "term lab-term");
-    term.appendChild(el("div", "term-bar", "<span></span><span></span><span></span><b>SW1 — コンソール</b>"));
+    const bar = el("div", "term-bar", "<span></span><span></span><span></span><b>SW1 — コンソール</b>");
+    const bMax = el("button", "lab-max", "作業画面で開く");
+    bMax.type = "button";
+    bar.appendChild(bMax);
+    term.appendChild(bar);
     const screen = el("div", "lab-screen");
     const out = el("div", "lab-out");
     const line = el("div", "lab-line");
@@ -858,7 +862,10 @@
     pre.textContent = lab.answer.join("\n");
     answer.appendChild(pre);
 
-    box.append(head, task, term, actions, result, hint, answer);
+    // 左の欄（課題・ボタン・結果）。ふだんは中身がそのまま並び、作業画面では左に1列でまとまる
+    const side = el("div", "lab-side");
+    side.append(head, task, actions, result, hint, answer);
+    box.append(side, term);
 
     let st, hist = [], hi = 0;
 
@@ -1046,6 +1053,31 @@
       bAns.classList.toggle("on", !answer.hidden);
     });
     bReset.addEventListener("click", () => { reset(); input.focus({ preventScroll: true }); });
+
+    // 作業画面: 画面いっぱいに広げ、左に課題、右に大きな端末を出す
+    let holder = null;
+    function setFull(on) {
+      if (on === box.classList.contains("lab-full")) return;
+      if (on) {
+        holder = el("div", "lab-holder");
+        holder.style.height = box.offsetHeight + "px";
+        box.before(holder);
+        box.classList.add("lab-full");
+        document.documentElement.classList.add("lab-open");
+        document.addEventListener("keydown", onEsc);
+      } else {
+        box.classList.remove("lab-full");
+        document.documentElement.classList.remove("lab-open");
+        document.removeEventListener("keydown", onEsc);
+        if (holder) { holder.remove(); holder = null; }
+        term.scrollIntoView({ block: "nearest" });
+      }
+      bMax.textContent = on ? "閉じる（Esc）" : "作業画面で開く";
+      scroll();
+      input.focus({ preventScroll: true });
+    }
+    function onEsc(e) { if (e.key === "Escape") { e.preventDefault(); setFull(false); } }
+    bMax.addEventListener("click", (e) => { e.stopPropagation(); setFull(!box.classList.contains("lab-full")); });
 
     reset();
   }
