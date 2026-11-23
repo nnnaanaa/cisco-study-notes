@@ -189,6 +189,12 @@
 .markdown-body .lab-task p { margin: 0.4rem 0; }
 .markdown-body .lab-task ol { margin: 0.3rem 0 0.9rem; }
 .markdown-body .lab-task .lab-fig { margin: 10px 0 8px; padding: 10px 12px 6px; }
+.markdown-body .lab-task .lab-lead { margin: 0.5rem 0 0.4rem; color: var(--text-strong); font-weight: 600; }
+.markdown-body .lab-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 10px 0 4px; padding: 10px 14px; background: var(--code-bg); border-radius: 8px; font-size: 0.92rem; line-height: 1.6; }
+.markdown-body .lab-facts dt { margin: 0; color: var(--text-muted); font-weight: 600; white-space: nowrap; }
+.markdown-body .lab-facts dd { margin: 0; }
+.markdown-body .lab-sub { margin: 14px 0 2px; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; color: var(--text-muted); }
+.lab-task .nw { white-space: nowrap; }
 .markdown-body .lab-term { margin: 0 0 10px; }
 .lab-screen { height: 340px; overflow-y: auto; scrollbar-color: #3a3e48 transparent; padding: 10px 16px 12px; font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); cursor: text; }
 .lab-out > div { white-space: pre-wrap; word-break: break-word; }

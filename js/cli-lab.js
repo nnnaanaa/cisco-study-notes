@@ -20,6 +20,7 @@
 
   // ---------------------------------------------------------------- インタフェース名
   // 内部では "Gi1/0/5"・"Gi0/0"・"Lo0"・"Po1" で持つ
+  let openEsc = null; // 大きく表示している演習の Esc の処理
   let curSt = null; // いま入力を解釈している機器（GigabitEthernet が実在するかを確かめるのに使う）
   const IF_TYPES = [
     { full: "gigabitethernet", key: "Gi", long: "GigabitEthernet", min: 1, re: /^\d+\/\d+(\/\d+)?$/ },
@@ -1331,8 +1332,8 @@
     trunk: {
       title: "トランクを設定する",
       figure: "<svg viewBox=\"0 0 640 165\" role=\"img\" aria-label=\"SW1のGi1/0/24とSW2のGi1/0/24が1本でつながる構成\"><path class=\"ln\" d=\"M230 79 H410\"/><text class=\"s\" x=\"320\" y=\"30\" text-anchor=\"middle\">この1本をトランクにする</text><rect class=\"sw\" x=\"60\" y=\"50\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"145\" y=\"84\" text-anchor=\"middle\">SW1</text><rect class=\"box\" x=\"410\" y=\"50\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"495\" y=\"84\" text-anchor=\"middle\">SW2</text><text class=\"s\" x=\"238\" y=\"70\">Gi1/0/24</text><text class=\"s\" x=\"402\" y=\"70\" text-anchor=\"end\">Gi1/0/24</text><text class=\"s\" x=\"145\" y=\"130\" text-anchor=\"middle\">VLAN 10（SALES）・20（DEV）</text><text class=\"s\" x=\"145\" y=\"148\" text-anchor=\"middle\">ここを設定する</text><text class=\"s\" x=\"495\" y=\"130\" text-anchor=\"middle\">トランクに固定・ネイティブ VLAN 99</text><text class=\"s\" x=\"495\" y=\"148\" text-anchor=\"middle\">DTP 停止（nonegotiate）</text></svg>",
-      intro:
-        "<p>SW1 の <code>Gi1/0/24</code> は SW2 につながっている。<br>SW2 側は<strong>トランクに固定、ネイティブ VLAN 99、DTP は停止</strong>の設定が済んでいる。<br>SW1 には VLAN 10（SALES）と 20（DEV）だけがある。</p><p>SW1 で次のように設定しよう。</p>",
+      lead: "SW1 の Gi1/0/24 を、SW2 とのトランクにする。",
+      facts: [["SW1","VLAN 10（SALES）と 20（DEV）だけがある"],["SW2","Gi1/0/24 はトランクに固定・ネイティブ VLAN 99・DTP 停止（設定済み）"]],
       goals: [
         "VLAN 99 を作り、名前を NATIVE にする",
         "Gi1/0/24 をトランクに固定する",
@@ -1374,8 +1375,8 @@
     etherchannel: {
       title: "LACP で EtherChannel を組む",
       figure: "<svg viewBox=\"0 0 640 185\" role=\"img\" aria-label=\"SW1とSW2がGi1/0/1とGi1/0/2の2本でつながり、束ねてPort-channel1にする構成\"><path class=\"ln\" d=\"M230 70 H410 M230 104 H410\"/><ellipse class=\"po\" cx=\"320\" cy=\"87\" rx=\"38\" ry=\"32\"/><text class=\"s\" x=\"320\" y=\"30\" text-anchor=\"middle\">2本を束ねて Port-channel1 にする</text><rect class=\"sw\" x=\"60\" y=\"44\" width=\"170\" height=\"86\" rx=\"10\"/><text class=\"t\" x=\"145\" y=\"92\" text-anchor=\"middle\">SW1</text><rect class=\"box\" x=\"410\" y=\"44\" width=\"170\" height=\"86\" rx=\"10\"/><text class=\"t\" x=\"495\" y=\"92\" text-anchor=\"middle\">SW2</text><text class=\"s\" x=\"238\" y=\"63\">Gi1/0/1</text><text class=\"s\" x=\"238\" y=\"120\">Gi1/0/2</text><text class=\"s\" x=\"402\" y=\"63\" text-anchor=\"end\">Gi1/0/1</text><text class=\"s\" x=\"402\" y=\"120\" text-anchor=\"end\">Gi1/0/2</text><text class=\"s\" x=\"145\" y=\"152\" text-anchor=\"middle\">VLAN 10・20</text><text class=\"s\" x=\"145\" y=\"170\" text-anchor=\"middle\">ここを設定する</text><text class=\"s\" x=\"495\" y=\"152\" text-anchor=\"middle\">LACP passive で Po1 にまとめ済み</text><text class=\"s\" x=\"495\" y=\"170\" text-anchor=\"middle\">Po1 はトランク</text></svg>",
-      intro:
-        "<p>SW1 の <code>Gi1/0/1</code>・<code>Gi1/0/2</code> は SW2 につながっている。<br>SW2 側は<strong>2本を LACP の passive で Port-channel1 にまとめ、トランクにしてある</strong>。<br>SW1 には VLAN 10・20 がある。</p><p>SW1 で次のように設定しよう。</p>",
+      lead: "SW1 と SW2 の間の2本を、LACP で1本に束ねる。",
+      facts: [["つなぎ","SW1 の Gi1/0/1・Gi1/0/2 → SW2"],["SW1","VLAN 10・20 がある"],["SW2","2本を LACP の passive で Port-channel1 にまとめ、トランクにしてある"]],
       goals: [
         "Gi1/0/1・Gi1/0/2 を LACP で束ね、Port-channel1 にする",
         "Port-channel1 をトランクに固定する",
@@ -1415,8 +1416,8 @@
     stp: {
       title: "ルートブリッジを決める",
       figure: "<svg viewBox=\"0 0 640 240\" role=\"img\" aria-label=\"SW1・SW2・SW3の三角形の構成。SW1のGi1/0/23がSW2、Gi1/0/24がSW3につながる。いまはSW2がルート\"><path class=\"ln\" d=\"M200 57 H440\"/><path class=\"ln\" d=\"M200 86 L250 150\"/><path class=\"ln\" d=\"M440 86 L390 150\"/><text class=\"s\" x=\"115\" y=\"18\" text-anchor=\"middle\">優先度 VLAN 10：32768／VLAN 20：24576</text><rect class=\"box\" x=\"30\" y=\"28\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"115\" y=\"52\" text-anchor=\"middle\">SW2</text><text class=\"s\" x=\"115\" y=\"72\" text-anchor=\"middle\">MAC 00a1.0000.0100</text><rect class=\"tag\" x=\"30\" y=\"94\" width=\"170\" height=\"22\" rx=\"5\"/><text class=\"s\" x=\"115\" y=\"109\" text-anchor=\"middle\">いまのルート（VLAN 10・20）</text><text class=\"s\" x=\"525\" y=\"18\" text-anchor=\"middle\">優先度 32768</text><rect class=\"box\" x=\"440\" y=\"28\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"525\" y=\"52\" text-anchor=\"middle\">SW3</text><text class=\"s\" x=\"525\" y=\"72\" text-anchor=\"middle\">MAC 00a1.0000.0200</text><rect class=\"sw\" x=\"235\" y=\"150\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"320\" y=\"174\" text-anchor=\"middle\">SW1</text><text class=\"s\" x=\"320\" y=\"194\" text-anchor=\"middle\">MAC 00a1.0000.0300</text><text class=\"s\" x=\"236\" y=\"134\" text-anchor=\"end\">Gi1/0/23</text><text class=\"s\" x=\"404\" y=\"134\">Gi1/0/24</text><text class=\"s\" x=\"320\" y=\"230\" text-anchor=\"middle\">優先度 32768（ここを設定する）</text></svg>",
-      intro:
-        "<p>SW1・SW2・SW3 が三角形につながっている（SW1 の <code>Gi1/0/23</code> → SW2、<code>Gi1/0/24</code> → SW3）。<br>VLAN 10 は、3台とも優先度が既定の 32768 で、<strong>MAC アドレスがいちばん小さい SW2</strong> がルートになっている。<br>VLAN 20 は、SW2 に <code>root primary</code> が設定済み（優先度 24576）で、SW2 がルートになっている。</p><p>SW1 で次のように設定しよう。</p>",
+      lead: "3台が三角形につながっている。SW1 を VLAN 10 のルートブリッジにする。",
+      facts: [["つなぎ","SW1 の Gi1/0/23 → SW2、Gi1/0/24 → SW3"],["VLAN 10","3台とも優先度 32768。MAC がいちばん小さい SW2 がルート"],["VLAN 20","SW2 に root primary を設定済み（優先度 24576）。SW2 がルート"]],
       goals: [
         "STP を Rapid PVST+ にする",
         "VLAN 10 では SW1 をルートブリッジにする",
@@ -1458,8 +1459,8 @@
       title: "OSPF で隣接を作る",
       figure: "<svg viewBox=\"0 0 640 160\" role=\"img\" aria-label=\"LAN、R1、R2が並ぶ構成。すべてエリア0\"><rect class=\"po\" x=\"8\" y=\"10\" width=\"624\" height=\"140\" rx=\"12\"/><text class=\"s\" x=\"20\" y=\"28\">エリア 0</text><path class=\"ln\" d=\"M120 75 H235 M405 75 H480\"/><rect class=\"pc\" x=\"30\" y=\"52\" width=\"90\" height=\"46\" rx=\"8\"/><text class=\"t\" x=\"75\" y=\"80\" text-anchor=\"middle\">LAN（PC）</text><rect class=\"sw\" x=\"235\" y=\"46\" width=\"170\" height=\"58\" rx=\"18\"/><text class=\"t\" x=\"320\" y=\"72\" text-anchor=\"middle\">R1</text><text class=\"s\" x=\"320\" y=\"90\" text-anchor=\"middle\">Lo0 1.1.1.1/32</text><rect class=\"box\" x=\"480\" y=\"46\" width=\"140\" height=\"58\" rx=\"18\"/><text class=\"t\" x=\"550\" y=\"72\" text-anchor=\"middle\">R2</text><text class=\"s\" x=\"550\" y=\"90\" text-anchor=\"middle\">RID 2.2.2.2</text><text class=\"s\" x=\"178\" y=\"66\" text-anchor=\"middle\">192.168.1.0/24</text><text class=\"s\" x=\"229\" y=\"92\" text-anchor=\"end\">Gi0/1 .1</text><text class=\"s\" x=\"442\" y=\"66\" text-anchor=\"middle\">10.0.12.0/30</text><text class=\"s\" x=\"411\" y=\"92\">Gi0/0 .1</text><text class=\"s\" x=\"474\" y=\"92\" text-anchor=\"end\">.2</text><text class=\"s\" x=\"320\" y=\"126\" text-anchor=\"middle\">ここを設定する</text><text class=\"s\" x=\"550\" y=\"126\" text-anchor=\"middle\">192.168.2.0/24 も持つ</text></svg>",
       device: "router",
-      intro:
-        "<p>R1 の <code>Gi0/0</code>（10.0.12.1/30）は R2 につながっている。<br>R1 の <code>Gi0/1</code>（192.168.1.1/24）は PC のいる LAN、<code>Lo0</code> は 1.1.1.1/32。<br>IP アドレスは設定済み。R2 はエリア 0 で OSPF を動かしていて、ルータ ID は 2.2.2.2。</p><p>R1 で次のように設定しよう。</p>",
+      lead: "R1 で OSPF を動かし、R2 と隣接を作る。IP アドレスは設定済み。",
+      facts: [["Gi0/0","10.0.12.1/30 → R2"],["Gi0/1","192.168.1.1/24 → PC のいる LAN"],["Lo0","1.1.1.1/32"],["R2","エリア 0 で OSPF を動かしている。ルータ ID 2.2.2.2"]],
       goals: [
         "OSPF のプロセス 1 を作り、ルータ ID を 1.1.1.1 にする",
         "Gi0/0・Gi0/1・Lo0 をエリア 0 に入れる",
@@ -1503,8 +1504,8 @@
       title: "コストで経路を選ばせる",
       figure: "<svg viewBox=\"0 0 640 220\" role=\"img\" aria-label=\"R1からR2経由とR3経由の2つの道で、R4の先の10.4.4.0/24へ行ける構成\"><path class=\"ln\" d=\"M140 90 L230 40 M140 112 L230 168 M350 40 L410 92 M350 168 L410 112 M520 101 H550\"/><rect class=\"sw\" x=\"20\" y=\"76\" width=\"120\" height=\"50\" rx=\"18\"/><text class=\"t\" x=\"80\" y=\"106\" text-anchor=\"middle\">R1</text><rect class=\"box\" x=\"230\" y=\"16\" width=\"120\" height=\"46\" rx=\"18\"/><text class=\"t\" x=\"290\" y=\"44\" text-anchor=\"middle\">R2</text><rect class=\"box\" x=\"230\" y=\"146\" width=\"120\" height=\"46\" rx=\"18\"/><text class=\"t\" x=\"290\" y=\"174\" text-anchor=\"middle\">R3</text><rect class=\"box\" x=\"410\" y=\"78\" width=\"110\" height=\"46\" rx=\"18\"/><text class=\"t\" x=\"465\" y=\"106\" text-anchor=\"middle\">R4</text><rect class=\"pc\" x=\"550\" y=\"80\" width=\"84\" height=\"42\" rx=\"8\"/><text class=\"s\" x=\"592\" y=\"98\" text-anchor=\"middle\">LAN</text><text class=\"s\" x=\"592\" y=\"113\" text-anchor=\"middle\">10.4.4.0/24</text><text class=\"s\" x=\"172\" y=\"56\" text-anchor=\"end\">Gi0/0</text><text class=\"s\" x=\"172\" y=\"152\" text-anchor=\"end\">Gi0/1</text><text class=\"s\" x=\"320\" y=\"212\" text-anchor=\"middle\">どのリンクもコスト 1。R1 から 10.4.4.0/24 へは、R2 経由と R3 経由の2通りの道がある</text></svg>",
       device: "router",
-      intro:
-        "<p>R1 は、<code>Gi0/0</code>（10.0.12.1/30）で R2 と、<code>Gi0/1</code>（10.0.13.1/30）で R3 とつながっている。<br>R2 と R3 の先には、どちらにも R4 の LAN（10.4.4.0/24）がある。<br>OSPF は設定済みで、どのリンクもコストは 1。</p><p>R1 で次のことをしよう。</p>",
+      lead: "R1 から R4 の LAN へは2通りの道がある。R2 経由だけを使うようにする。",
+      facts: [["Gi0/0","10.0.12.1/30 → R2"],["Gi0/1","10.0.13.1/30 → R3"],["宛先","R4 の LAN 10.4.4.0/24（R2・R3 のどちらの先にもある）"],["OSPF","設定済み。どのリンクもコスト 1"]],
       goals: [
         "show ip route で、10.4.4.0/24 への経路が2本（等コスト）あることを確かめる",
         "R3 経由は予備にしたい。Gi0/1 のコストを上げて、R2 経由の1本だけが使われるようにする",
@@ -1545,8 +1546,8 @@
       title: "隣接ができない原因を探す",
       figure: "<svg viewBox=\"0 0 640 160\" role=\"img\" aria-label=\"R1のGi0/0とR3のGi0/0がつながっているが、隣接できない\"><path class=\"ln\" d=\"M230 75 H410\"/><rect class=\"sw\" x=\"60\" y=\"46\" width=\"170\" height=\"58\" rx=\"18\"/><text class=\"t\" x=\"145\" y=\"72\" text-anchor=\"middle\">R1</text><text class=\"s\" x=\"145\" y=\"90\" text-anchor=\"middle\">RID 1.1.1.1</text><rect class=\"box\" x=\"410\" y=\"46\" width=\"170\" height=\"58\" rx=\"18\"/><text class=\"t\" x=\"495\" y=\"72\" text-anchor=\"middle\">R3</text><text class=\"s\" x=\"495\" y=\"90\" text-anchor=\"middle\">RID 3.3.3.3</text><text class=\"s\" x=\"320\" y=\"66\" text-anchor=\"middle\">10.0.13.0/30</text><text class=\"s\" x=\"238\" y=\"94\">Gi0/0 .1</text><text class=\"s\" x=\"402\" y=\"94\" text-anchor=\"end\">.2 Gi0/0</text><rect class=\"tag\" x=\"270\" y=\"112\" width=\"100\" height=\"22\" rx=\"5\"/><text class=\"s\" x=\"320\" y=\"127\" text-anchor=\"middle\">隣接できない</text><text class=\"s\" x=\"145\" y=\"128\" text-anchor=\"middle\">ここを直す</text><text class=\"s\" x=\"495\" y=\"128\" text-anchor=\"middle\">エリア 0・hello 10 秒・dead 40 秒</text><text class=\"s\" x=\"495\" y=\"146\" text-anchor=\"middle\">（設定は正しい）</text></svg>",
       device: "router",
-      intro:
-        "<p>R1 の <code>Gi0/0</code>（10.0.13.1/30）は R3 につながっているが、隣接ができない（<code>show ip ospf neighbor</code> に何も出ない）。<br>R3 側の設定は正しい。R3 の Gi0/0 は 10.0.13.2/30、エリア 0、hello 10 秒・dead 40 秒で、ルータ ID は 3.3.3.3。</p><p>show コマンドで原因を見つけて、R1 側を直そう。</p>",
+      lead: "R1 と R3 の間で隣接ができない（show ip ospf neighbor に何も出ない）。R1 側の原因を見つけて直す。",
+      facts: [["R1 Gi0/0","10.0.13.1/30 → R3"],["R3 Gi0/0","10.0.13.2/30・エリア 0・hello 10 秒・dead 40 秒（正しい）"],["R3","ルータ ID 3.3.3.3"]],
       goals: [
         "原因を2つ見つける",
         "直して、R3 と FULL になる",
@@ -1589,8 +1590,8 @@
       title: "eBGP で ISP とつなぐ",
       figure: "<svg viewBox=\"0 0 640 178\" role=\"img\" aria-label=\"AS65001のLANとR1、AS65002のISPのルータ。R1とISPの間がeBGP\"><rect class=\"po\" x=\"8\" y=\"12\" width=\"392\" height=\"120\" rx=\"12\"/><text class=\"s\" x=\"20\" y=\"30\">AS 65001（自社）</text><rect class=\"po\" x=\"448\" y=\"12\" width=\"184\" height=\"120\" rx=\"12\"/><text class=\"s\" x=\"460\" y=\"30\">AS 65002（ISP）</text><path class=\"ln\" d=\"M120 80 H205 M375 80 H470\"/><rect class=\"pc\" x=\"24\" y=\"56\" width=\"96\" height=\"48\" rx=\"8\"/><text class=\"t\" x=\"72\" y=\"78\" text-anchor=\"middle\">LAN</text><text class=\"s\" x=\"72\" y=\"95\" text-anchor=\"middle\">172.16.10.0/24</text><rect class=\"sw\" x=\"205\" y=\"50\" width=\"170\" height=\"60\" rx=\"18\"/><text class=\"t\" x=\"290\" y=\"76\" text-anchor=\"middle\">R1</text><text class=\"s\" x=\"290\" y=\"94\" text-anchor=\"middle\">Lo0 1.1.1.1/32</text><rect class=\"box\" x=\"470\" y=\"50\" width=\"146\" height=\"60\" rx=\"18\"/><text class=\"t\" x=\"543\" y=\"76\" text-anchor=\"middle\">ISP</text><text class=\"s\" x=\"543\" y=\"94\" text-anchor=\"middle\">203.0.113.2</text><text class=\"s\" x=\"197\" y=\"98\" text-anchor=\"end\">Gi0/1</text><text class=\"s\" x=\"424\" y=\"72\" text-anchor=\"middle\">eBGP</text><text class=\"s\" x=\"381\" y=\"98\">.1</text><text class=\"s\" x=\"463\" y=\"98\" text-anchor=\"end\">.2</text><text class=\"s\" x=\"290\" y=\"154\" text-anchor=\"middle\">ここを設定する（Gi0/0 は 203.0.113.1/30）</text><text class=\"s\" x=\"543\" y=\"154\" text-anchor=\"middle\">デフォルトルートと</text><text class=\"s\" x=\"543\" y=\"170\" text-anchor=\"middle\">198.51.100.0/24 を送ってくる</text></svg>",
       device: "router",
-      intro:
-        "<p>R1（AS 65001）の <code>Gi0/0</code>（203.0.113.1/30）は ISP のルータ（203.0.113.2、AS 65002）につながっている。<br>R1 の <code>Gi0/1</code> は社内の LAN（172.16.10.1/24）、<code>Lo0</code> は 1.1.1.1/32。<br>ISP 側の設定は済んでいて、デフォルトルートと 198.51.100.0/24 を送ってくる。</p><p>R1 で次のように設定しよう。</p>",
+      lead: "R1（AS 65001）を、ISP と eBGP でつなぐ。IP アドレスは設定済み。",
+      facts: [["Gi0/0","203.0.113.1/30 → ISP（203.0.113.2・AS 65002）"],["Gi0/1","172.16.10.1/24 → 社内の LAN"],["Lo0","1.1.1.1/32"],["ISP","設定済み。デフォルトルートと 198.51.100.0/24 を送ってくる"]],
       goals: [
         "BGP を AS 65001 で動かす",
         "203.0.113.2（AS 65002）と eBGP のネイバーになる",
@@ -1638,10 +1639,12 @@
   function build(box, lab) {
     box.innerHTML = "";
     const head = el("div", "lab-head", '<span class="lab-tag">やってみる</span><b>' + esc(lab.title) + "</b>");
-    // 構成の図（lab.figure）は、説明の最初の段落のすぐ後ろに入れる
-    const cut = lab.intro.indexOf("</p>") + 4;
+    // 問題文: 1行の要約 → 構成の図 → 構成の一覧 → やること。IP アドレスやインタフェース名は途中で折り返さない
+    const nw = (t) => t.replace(/(\d+\.\d+\.\d+\.\d+(\/\d+)?|Gi\d[\d/]*|Lo\d+|Port-channel\d+|AS \d+)/g, '<span class="nw">$1</span>');
     const fig = lab.figure ? '<figure class="fig lab-fig">' + lab.figure + "</figure>" : "";
-    const task = el("div", "lab-task", lab.intro.slice(0, cut) + fig + lab.intro.slice(cut) + "<ol>" + lab.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ol>");
+    const facts = '<dl class="lab-facts">' + (lab.facts || []).map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + nw(esc(v)) + "</dd>").join("") + "</dl>";
+    const task = el("div", "lab-task", '<p class="lab-lead">' + nw(esc(lab.lead)) + "</p>" + fig + facts +
+      '<div class="lab-sub">やること</div><ol>' + lab.goals.map((g) => "<li>" + nw(esc(g)) + "</li>").join("") + "</ol>");
     const term = el("div", "term lab-term");
     const bar = el("div", "term-bar", "<span></span><span></span><span></span><b>" + esc(lab.host || (lab.device === "router" ? "R1" : "SW1")) + " — コンソール</b>");
     const bMax = el("button", "lab-max", "大きく表示");
@@ -1909,10 +1912,12 @@
         document.body.appendChild(backdrop);
         document.documentElement.classList.add("lab-open");
         document.addEventListener("keydown", onEsc);
+        openEsc = onEsc;
       } else {
         box.classList.remove("lab-full");
         document.documentElement.classList.remove("lab-open");
         document.removeEventListener("keydown", onEsc);
+        openEsc = null;
         if (holder) { holder.remove(); holder = null; }
         if (backdrop) { backdrop.remove(); backdrop = null; }
         term.scrollIntoView({ block: "nearest" });
@@ -1984,6 +1989,10 @@
 
   window.DocCliLab = {
     init(root) {
+      // 大きく表示したままページを移ったときの、暗い背景とスクロールの固定を片付ける
+      document.querySelectorAll(".lab-backdrop").forEach((e) => e.remove());
+      document.documentElement.classList.remove("lab-open");
+      if (openEsc) { document.removeEventListener("keydown", openEsc); openEsc = null; }
       root.querySelectorAll("div.cli-lab[data-lab]").forEach((box) => {
         if (box.dataset.ready) return;
         const lab = LABS[box.dataset.lab];
