@@ -5,19 +5,19 @@
   --mono: ui-monospace, "SFMono-Regular", Consolas, "Noto Sans JP", monospace;
   --mono-size: 0.84rem;
   --mono-line: 1.55;
-  --term-bg: #f6f7f9;
-  --term-text: #2b2f36;
-  --term-muted: #9aa0ab;
-  --term-accent: #5a46c8;
-  --term-line: #e6e8ec;
+  --term-bg: #1b1d23;
+  --term-text: #e4e6eb;
+  --term-muted: #8a909c;
+  --term-accent: #b9a8ff;
+  --term-line: #2a2d35;
   --fig-a: #6246ea;
   --fig-b: #0e9f8a;
 }
 [data-theme="dark"] .markdown-body {
-  --term-bg: #1a1c22;
-  --term-text: #d5d8de;
-  --term-muted: #7c828e;
-  --term-accent: #b3a4f5;
+  --term-bg: #0b0c0f;
+  --term-text: #e4e6eb;
+  --term-muted: #8a909c;
+  --term-accent: #b9a8ff;
   --term-line: #2a2d35;
   --fig-a: #a893ff;
   --fig-b: #4fd1bd;
@@ -71,34 +71,34 @@
 
 /* 注釈付きの設定（pre[data-cli="config"]） */
 .cli-annot-wrap { margin: 0 0 1.5em; }
-.cli-annot { border: 1px solid var(--term-line); border-radius: var(--radius); overflow: hidden; background: var(--term-bg); }
-.cli-annot-title { color: var(--term-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; padding: 7px 14px 5px; border-bottom: 1px solid var(--term-line); }
+.cli-annot { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.cli-annot-title { background: var(--term-bg); color: var(--term-muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.05em; padding: 7px 14px 5px; border-bottom: 1px solid var(--term-line); }
 .cli-annot-row { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
-.cli-annot-cmd { color: var(--term-text); font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); padding: 2px 14px; white-space: pre; overflow-x: auto; }
+.cli-annot-cmd { background: var(--term-bg); color: var(--term-text); font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); padding: 2px 14px; white-space: pre; overflow-x: auto; }
 .cli-annot-cmd .top { color: var(--term-accent); font-weight: 600; }
 .cli-annot-cmd .sep { color: var(--term-muted); }
-.cli-annot-note { padding: 2px 14px; font-size: 0.84rem; line-height: var(--mono-line); color: var(--text-muted); border-left: 1px solid var(--term-line); }
+.cli-annot-note { padding: 2px 14px; font-size: 0.84rem; line-height: var(--mono-line); color: var(--text); background: var(--bg-elevated); }
 .cli-annot-row:first-child > div, .cli-annot-title + .cli-annot-row > div { padding-top: 10px; }
 .cli-annot-row:last-child > div { padding-bottom: 10px; }
-.cli-annot-row:hover > div { background: rgba(127, 127, 127, 0.07); }
-.cli-annot-row:hover .cli-annot-note { color: var(--text); }
+.cli-annot-row:hover .cli-annot-cmd { background: #262933; }
+.cli-annot-row:hover .cli-annot-note { background: var(--accent-soft); }
 .cli-copy { margin-top: 8px; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text-muted); border-radius: 8px; padding: 3px 10px; font: inherit; font-size: 0.8rem; cursor: pointer; }
 .cli-copy:hover { color: var(--accent); border-color: var(--accent); }
 
 /* 端末の出力（pre[data-cli="show"]） */
-.markdown-body .term { background: var(--term-bg); color: var(--term-text); border: 1px solid var(--term-line); border-radius: var(--radius); margin: 0 0 1.5em; overflow: hidden; }
-.markdown-body .term-bar { display: flex; align-items: center; gap: 5px; padding: 7px 14px 5px; border-bottom: 1px solid var(--term-line); }
-.markdown-body .term-bar span { width: 8px; height: 8px; border-radius: 50%; background: var(--term-line); }
+.markdown-body .term { background: var(--term-bg); color: var(--term-text); border-radius: var(--radius); margin: 0 0 1.5em; overflow: hidden; }
+.markdown-body .term-bar { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-bottom: 1px solid var(--term-line); }
+.markdown-body .term-bar span { width: 10px; height: 10px; border-radius: 50%; background: #3a3e48; }
 .markdown-body .term-bar b { margin-left: 8px; color: var(--term-muted); font-size: 0.75rem; font-weight: 600; }
 .markdown-body .term pre { margin: 0; background: none; border: 0; border-radius: 0; color: inherit; padding: 12px 16px 14px; font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); }
 .markdown-body .term pre * { font-family: inherit; font-size: inherit; }
 .markdown-body .term pre code { color: inherit; }
 .markdown-body .term .term-prompt { color: var(--term-accent); }
-.markdown-body .term .code-copy-btn { background: var(--term-bg); border-color: var(--term-line); color: var(--term-muted); }
+.markdown-body .term .code-copy-btn { background: #24262d; border-color: #3a3e48; color: var(--term-muted); }
 
 /* 吹き出し（data-tip） */
 .markdown-body .hot { border-bottom: 1px dashed var(--text-muted); cursor: help; }
-.markdown-body .term .hot { border-bottom-color: var(--term-muted); }
+.markdown-body .term .hot { border-bottom: 2px dotted var(--term-accent); }
 .markdown-body .hot:hover, .markdown-body .hot:focus { background: rgba(168, 147, 255, 0.2); outline: none; }
 .doc-tip { position: fixed; z-index: 50; max-width: 300px; background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; font-size: 0.82rem; line-height: 1.6; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18); pointer-events: none; opacity: 0; transition: opacity 0.12s; }
 .doc-tip.show { opacity: 1; }
@@ -190,7 +190,7 @@
 
 @media print {
   /* 端末風の黒い欄は、紙では白地・黒文字にする */
-  [data-theme] .markdown-body { --term-bg: #f6f7f9; --term-text: #1d2027; --term-muted: #6b7280; --term-accent: #4b30d1; }
+  [data-theme] .markdown-body { --term-bg: #f6f7f9; --term-text: #1d2027; --term-muted: #6b7280; --term-accent: #4b30d1; --term-line: #d4d7de; }
   .markdown-body .term, .cli-annot { border: 1px solid #c9ccd3; }
   .markdown-body .term-bar { border-bottom-color: #d4d7de; }
   .markdown-body .term-bar span { display: none; }
