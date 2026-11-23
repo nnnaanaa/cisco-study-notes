@@ -227,15 +227,23 @@
 
 /* 作業画面: 画面いっぱいに広げ、左に課題、右に大きな端末 */
 html.lab-open, html.lab-open body { overflow: hidden; }
-.markdown-body .cli-lab.lab-full { position: fixed; inset: 0; z-index: 1000; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--bg); display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); }
-.lab-full .lab-side { display: block; overflow-y: auto; padding: 20px 22px 28px; background: var(--bg-elevated); border-right: 1px solid var(--border); }
+.markdown-body .cli-lab.lab-full { position: fixed; inset: 0; z-index: 1000; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--bg); display: grid; grid-template-columns: min(var(--side-w, 480px), calc(100vw - 320px)) 8px minmax(0, 1fr); }
+.lab-split { display: none; }
+.lab-full .lab-split { display: block; background: var(--border); cursor: col-resize; touch-action: none; position: relative; }
+.lab-full .lab-split::after { content: ""; position: absolute; left: 50%; top: 50%; width: 2px; height: 36px; transform: translate(-50%, -50%); border-radius: 2px; background: var(--text-muted); opacity: 0.6; }
+.lab-full .lab-split:hover, .lab-full .lab-split.drag, .lab-full .lab-split:focus-visible { background: var(--accent); outline: 0; }
+.lab-full .lab-split:hover::after, .lab-full .lab-split.drag::after { background: #fff; opacity: 1; }
+.lab-full .lab-side { display: block; overflow-y: auto; padding: 20px 22px 28px; background: var(--bg-elevated); container-type: inline-size; }
 .lab-full .lab-head { margin-bottom: 8px; }
 .lab-full .cli-annot-row { grid-template-columns: minmax(0, 1fr); }
+@container (min-width: 560px) { .lab-full .cli-annot-row { grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); } }
 .markdown-body .lab-full .lab-term { margin: 0; border-radius: 0; display: flex; flex-direction: column; min-height: 0; }
 .lab-full .lab-screen { flex: 1; height: auto; padding: 14px 22px 18px; font-size: 0.95rem; }
 @media (max-width: 720px) {
-  .markdown-body .cli-lab.lab-full { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-  .lab-full .lab-side { max-height: 40vh; padding: 14px 16px 18px; border-right: 0; border-bottom: 1px solid var(--border); }
+  .markdown-body .cli-lab.lab-full { grid-template-columns: minmax(0, 1fr); grid-template-rows: min(var(--side-h, 40vh), calc(100vh - 140px)) 10px minmax(0, 1fr); }
+  .lab-full .lab-split { cursor: row-resize; }
+  .lab-full .lab-split::after { width: 36px; height: 2px; }
+  .lab-full .lab-side { padding: 14px 16px 18px; }
   .lab-full .lab-screen { padding: 10px 16px 14px; font-size: var(--mono-size); }
 }
 

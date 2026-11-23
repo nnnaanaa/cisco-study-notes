@@ -865,7 +865,12 @@
     // 左の欄（課題・ボタン・結果）。ふだんは中身がそのまま並び、作業画面では左に1列でまとまる
     const side = el("div", "lab-side");
     side.append(head, task, actions, result, hint, answer);
-    box.append(side, term);
+    // 作業画面で左右（狭い画面では上下）の比率を変える仕切り
+    const split = el("div", "lab-split");
+    split.tabIndex = 0;
+    split.setAttribute("role", "separator");
+    split.title = "ドラッグで幅を変える（ダブルクリックで元に戻す）";
+    box.append(side, split, term);
 
     let st, hist = [], hi = 0;
 
@@ -1062,6 +1067,7 @@
         holder = el("div", "lab-holder");
         holder.style.height = box.offsetHeight + "px";
         box.before(holder);
+        loadSize();
         box.classList.add("lab-full");
         document.documentElement.classList.add("lab-open");
         document.addEventListener("keydown", onEsc);
@@ -1076,6 +1082,58 @@
       scroll();
       input.focus({ preventScroll: true });
     }
+    // ---- 仕切り: ドラッグ・矢印キーで比率を変え、ブラウザに覚えておく
+    const narrow = () => window.matchMedia("(max-width: 720px)").matches;
+    const SIZE_KEY = { w: "cliLabSideW", h: "cliLabSideH" };
+    function loadSize() {
+      split.setAttribute("aria-orientation", narrow() ? "horizontal" : "vertical");
+      ["w", "h"].forEach((d) => {
+        let v = null;
+        try { v = localStorage.getItem(SIZE_KEY[d]); } catch (_) {}
+        if (v) box.style.setProperty("--side-" + d, v + "px");
+        else box.style.removeProperty("--side-" + d);
+      });
+    }
+    function setSize(px, save) {
+      const n = narrow(), d = n ? "h" : "w";
+      const max = n ? window.innerHeight - 140 : window.innerWidth - 320;
+      const v = Math.round(Math.max(n ? 100 : 240, Math.min(max, px)));
+      box.style.setProperty("--side-" + d, v + "px");
+      if (save) { try { localStorage.setItem(SIZE_KEY[d], v); } catch (_) {} }
+      scroll();
+    }
+
+    split.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      split.setPointerCapture(e.pointerId);
+      split.classList.add("drag");
+      const move = (ev) => setSize(narrow() ? ev.clientY : ev.clientX, false);
+      const up = (ev) => {
+        split.releasePointerCapture(ev.pointerId);
+        split.classList.remove("drag");
+        split.removeEventListener("pointermove", move);
+        split.removeEventListener("pointerup", up);
+        split.removeEventListener("pointercancel", up);
+        setSize(narrow() ? ev.clientY : ev.clientX, true);
+      };
+      split.addEventListener("pointermove", move);
+      split.addEventListener("pointerup", up);
+      split.addEventListener("pointercancel", up);
+    });
+    split.addEventListener("dblclick", () => {
+      const d = narrow() ? "h" : "w";
+      try { localStorage.removeItem(SIZE_KEY[d]); } catch (_) {}
+      box.style.removeProperty("--side-" + d);
+    });
+    split.addEventListener("keydown", (e) => {
+      const n = narrow();
+      const step = (n ? ["ArrowUp", "ArrowDown"] : ["ArrowLeft", "ArrowRight"]).indexOf(e.key);
+      if (step < 0) return;
+      e.preventDefault();
+      const r = side.getBoundingClientRect();
+      setSize((n ? r.height : r.width) + (step ? 40 : -40), true);
+    });
+
     function onEsc(e) { if (e.key === "Escape") { e.preventDefault(); setFull(false); } }
     bMax.addEventListener("click", (e) => { e.stopPropagation(); setFull(!box.classList.contains("lab-full")); });
 
