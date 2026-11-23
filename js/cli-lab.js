@@ -2100,7 +2100,7 @@
     function reset() {
       st = newState(lab);
       out.innerHTML = "";
-      print("! ? で次に打てる候補、Tab で補完、↑↓ で前に打ったコマンド。省略形（conf t、" + (st.dev === "rt" ? "int g0/0、sh ip ro" : "int g1/0/24") + "、sh run）も使える", "lab-muted");
+      print("! ? で次に打てる候補、Tab で補完、↑↓ で前に打ったコマンド。右クリックか Ctrl+V で貼り付け。省略形（conf t、" + (st.dev === "rt" ? "int g0/0、sh ip ro" : "int g1/0/24") + "、sh run）も使える", "lab-muted");
       print("");
       refresh();
       result.hidden = true;
@@ -2286,14 +2286,28 @@
       }
     });
     // 複数行を貼り付けたら、1行ずつ打って Enter を押したのと同じように実行する（最後の行に改行がなければ入力欄に残す）
-    input.addEventListener("paste", (e) => {
-      const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
-      if (!/[\r\n]/.test(text)) return;
-      e.preventDefault();
+    function pasteText(text) {
       const lines = (input.value + text).replace(/\r\n?/g, "\n").split("\n");
       const last = lines.pop();
       lines.forEach((l) => run(l));
       input.value = last;
+      input.focus({ preventScroll: true });
+    }
+    input.addEventListener("paste", (e) => {
+      const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
+      if (!/[\r\n]/.test(text)) return;
+      e.preventDefault();
+      pasteText(text);
+    });
+    // 黒い画面を右クリックしたら貼り付ける（Tera Term や PuTTY と同じ）。文字を選んでいるときは、コピーできるようにふだんのメニューを出す
+    screen.addEventListener("contextmenu", (e) => {
+      if (String(window.getSelection())) return;
+      e.preventDefault();
+      if (!navigator.clipboard || !navigator.clipboard.readText) { print("! このブラウザでは右クリックで貼り付けられない。Ctrl+V で貼り付ける", "lab-muted"); scroll(); input.focus({ preventScroll: true }); return; }
+      navigator.clipboard.readText().then(
+        (text) => { if (text) pasteText(text); else input.focus({ preventScroll: true }); scroll(); },
+        () => { print("! クリップボードを読めなかった（ブラウザで許可されていない）。Ctrl+V で貼り付ける", "lab-muted"); scroll(); input.focus({ preventScroll: true }); }
+      );
     });
     // ? は Enter を待たずに候補を出す（スマホのキーボードでも動くよう、入力された文字で見る）
     input.addEventListener("input", () => {
