@@ -188,6 +188,7 @@
 .lab-tag { font-size: 0.72rem; font-weight: 700; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px; }
 .markdown-body .lab-task p { margin: 0.4rem 0; }
 .markdown-body .lab-task ol { margin: 0.3rem 0 0.9rem; }
+.markdown-body .lab-task .lab-fig { margin: 10px 0 8px; padding: 10px 12px 6px; }
 .markdown-body .lab-term { margin: 0 0 10px; }
 .lab-screen { height: 340px; overflow-y: auto; scrollbar-color: #3a3e48 transparent; padding: 10px 16px 12px; font-family: var(--mono); font-size: var(--mono-size); line-height: var(--mono-line); cursor: text; }
 .lab-out > div { white-space: pre-wrap; word-break: break-word; }

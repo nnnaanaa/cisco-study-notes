@@ -1412,6 +1412,7 @@
 
     stp: {
       title: "ルートブリッジを決める",
+      figure: "<svg viewBox=\"0 0 640 240\" role=\"img\" aria-label=\"SW1・SW2・SW3の三角形の構成。SW1のGi1/0/23がSW2、Gi1/0/24がSW3につながる。いまはSW2がルート\"><path class=\"ln\" d=\"M200 57 H440\"/><path class=\"ln\" d=\"M200 86 L250 150\"/><path class=\"ln\" d=\"M440 86 L390 150\"/><text class=\"s\" x=\"115\" y=\"18\" text-anchor=\"middle\">優先度 VLAN 10：32768／VLAN 20：24576</text><rect class=\"box\" x=\"30\" y=\"28\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"115\" y=\"52\" text-anchor=\"middle\">SW2</text><text class=\"s\" x=\"115\" y=\"72\" text-anchor=\"middle\">MAC 00a1.0000.0100</text><rect class=\"tag\" x=\"30\" y=\"94\" width=\"170\" height=\"22\" rx=\"5\"/><text class=\"s\" x=\"115\" y=\"109\" text-anchor=\"middle\">いまのルート（VLAN 10・20）</text><text class=\"s\" x=\"525\" y=\"18\" text-anchor=\"middle\">優先度 32768</text><rect class=\"box\" x=\"440\" y=\"28\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"525\" y=\"52\" text-anchor=\"middle\">SW3</text><text class=\"s\" x=\"525\" y=\"72\" text-anchor=\"middle\">MAC 00a1.0000.0200</text><rect class=\"sw\" x=\"235\" y=\"150\" width=\"170\" height=\"58\" rx=\"10\"/><text class=\"t\" x=\"320\" y=\"174\" text-anchor=\"middle\">SW1</text><text class=\"s\" x=\"320\" y=\"194\" text-anchor=\"middle\">MAC 00a1.0000.0300</text><text class=\"s\" x=\"236\" y=\"134\" text-anchor=\"end\">Gi1/0/23</text><text class=\"s\" x=\"404\" y=\"134\">Gi1/0/24</text><text class=\"s\" x=\"320\" y=\"230\" text-anchor=\"middle\">優先度 32768（ここを設定する）</text></svg>",
       intro:
         "<p>SW1・SW2・SW3 が三角形につながっている（SW1 の <code>Gi1/0/23</code> → SW2、<code>Gi1/0/24</code> → SW3）。<br>VLAN 10 は、3台とも優先度が既定の 32768 で、<strong>MAC アドレスがいちばん小さい SW2</strong> がルートになっている。<br>VLAN 20 は、SW2 に <code>root primary</code> が設定済み（優先度 24576）で、SW2 がルートになっている。</p><p>SW1 で次のように設定しよう。</p>",
       goals: [
@@ -1631,7 +1632,10 @@
   function build(box, lab) {
     box.innerHTML = "";
     const head = el("div", "lab-head", '<span class="lab-tag">やってみる</span><b>' + esc(lab.title) + "</b>");
-    const task = el("div", "lab-task", lab.intro + "<ol>" + lab.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ol>");
+    // 構成の図（lab.figure）は、説明の最初の段落のすぐ後ろに入れる
+    const cut = lab.intro.indexOf("</p>") + 4;
+    const fig = lab.figure ? '<figure class="fig lab-fig">' + lab.figure + "</figure>" : "";
+    const task = el("div", "lab-task", lab.intro.slice(0, cut) + fig + lab.intro.slice(cut) + "<ol>" + lab.goals.map((g) => "<li>" + esc(g) + "</li>").join("") + "</ol>");
     const term = el("div", "term lab-term");
     const bar = el("div", "term-bar", "<span></span><span></span><span></span><b>" + esc(lab.host || (lab.device === "router" ? "R1" : "SW1")) + " — コンソール</b>");
     const bMax = el("button", "lab-max", "大きく表示");
