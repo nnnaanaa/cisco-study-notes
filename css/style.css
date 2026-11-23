@@ -394,9 +394,10 @@ a:hover { color: var(--accent-hover); }
   color: var(--text-strong);
 }
 .markdown-body p strong,
-.markdown-body li strong {
-  background: linear-gradient(transparent 62%, var(--marker) 62%);
-  padding: 0 0.05em;
+.markdown-body li strong,
+.markdown-body td strong {
+  color: var(--text-strong);
+  font-weight: 700;
 }
 
 .markdown-body ul, .markdown-body ol {
