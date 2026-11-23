@@ -123,6 +123,9 @@
     oprio: { help: "<0-255>", desc: "優先度（0 は DR・BDR にならない）", parse: (t) => numIn(t, 0, 255) },
     secs: { help: "<1-65535>", desc: "秒", parse: (t) => numIn(t, 1, 65535) },
     refbw: { help: "<1-4294967>", desc: "基準の帯域幅（Mbps）", parse: (t) => numIn(t, 1, 4294967) },
+    acl: { help: "<1-99>", desc: "標準アクセスリストの番号", parse: (t) => numIn(t, 1, 99) },
+    hgrp: { help: "<0-255>", desc: "HSRP のグループ番号", parse: (t) => numIn(t, 0, 255) },
+    hprio: { help: "<0-255>", desc: "優先度（既定 100、大きい方が Active）", parse: (t) => numIn(t, 0, 255) },
   };
   function numIn(t, lo, hi) {
     return /^\d+$/.test(t) && +t >= lo && +t <= hi ? +t : null;
@@ -149,6 +152,10 @@
     "reference-bandwidth": "コストの基準の帯域幅", cost: "コスト", "hello-interval": "hello の間隔", "dead-interval": "ダウンと判断するまでの時間",
     "point-to-point": "1対1（DR・BDR を選ばない）", broadcast: "ブロードキャスト（DR・BDR を選ぶ）", "remote-as": "相手の AS 番号", mask: "サブネットマスク",
     clear: "リセットする", process: "プロセス", ping: "疎通を確かめる", connected: "直結の経路",
+    standby: "HSRP", preempt: "優先度が高ければ Active を奪う", version: "バージョン", nat: "NAT", inside: "内側（LAN 側）", outside: "外側（インターネット側）",
+    source: "送信元のアドレスを変換", list: "アクセスリストで変換する相手を選ぶ", pool: "変換に使うアドレスの範囲", overload: "ポート番号で多重化する（PAT）",
+    static: "1対1で固定して変換", netmask: "マスク", "access-list": "アクセスリスト", "access-lists": "アクセスリストの一覧", permit: "許可", deny: "拒否",
+    host: "1台だけ", any: "すべて", ntp: "NTP", server: "サーバ", associations: "時刻を合わせる相手の一覧", status: "同期の状態", translations: "変換の表", statistics: "統計",
   };
   // EtherChannel の desirable / auto は PAgP の意味になる
   const KW_CHANNEL = { desirable: "PAgP で自分から誘う", auto: "PAgP で誘われたら応じる", on: "ネゴシエーションせずに束ねる" };
@@ -235,7 +242,8 @@
   // ---------------------------------------------------------------- スイッチの状態
   function newIf() {
     return { mode: null, access: 1, native: 1, allowed: null, nonego: false, encap: null, group: null, gmode: null, shut: false, desc: "", portfast: false, bpduguard: false,
-      ip: null, ospfPid: null, ospfArea: null, ospfCost: null, ospfPrio: null, ospfNet: null, hello: null, dead: null };
+      ip: null, ospfPid: null, ospfArea: null, ospfCost: null, ospfPrio: null, ospfNet: null, hello: null, dead: null,
+      standby: {}, hsrpVersion: null, nat: null };
   }
   const L2KEYS = ["mode", "access", "native", "allowed", "nonego", "encap"];
   function copyL2(from, to) {
@@ -260,6 +268,7 @@
       bridges: lab.bridges || {},
       warned: new Set(),
       ospf: null, bgp: null, routeTimes: {}, adjUp: new Set(), bgpUp: new Set(), pending: null,
+      acls: {}, natStatic: [], natDynamic: [], pools: {}, ntp: [], hsrpMem: {}, ntpServers: lab.ntpServers || {}, natDest: lab.natDest || null,
     };
     if (router) {
       // ルータのポートは、最初は shutdown（IOS と同じ）
@@ -944,6 +953,7 @@
     if (c.ospfPrio != null) out.push(" ip ospf priority " + c.ospfPrio);
     if (c.ospfArea != null) out.push(" ip ospf " + c.ospfPid + " area " + c.ospfArea);
     if (c.ospfCost) out.push(" ip ospf cost " + c.ospfCost);
+    out.push(...svcIfLines(st, k));
     if (c.shut) out.push(" shutdown");
     return out;
   }
@@ -968,6 +978,7 @@
       st.bgp.neighbors.forEach((nb, ip) => body.push(" neighbor " + ip + " remote-as " + nb.remoteAs));
       body.push("!");
     }
+    body.push(...svcGlobalLines(st));
     body.push("end");
     return withHeader(body);
   }
@@ -1096,6 +1107,262 @@
     }, "rt"],
   ];
 
+
+  // ---------------------------------------------------------------- ルータ: HSRP
+  // 相手のルータ（link.hsrp）は最初から Active。こちらは、preempt があって優先度が高いときだけ Active を奪う
+  function hsrpGroups(st) {
+    const out = [];
+    Object.keys(st.ifs).sort(ifSortBrief).forEach((k) => {
+      const c = st.ifs[k];
+      Object.keys(c.standby || {}).map(Number).sort((a, b) => a - b).forEach((g) => {
+        const cfg = c.standby[g];
+        const link = st.links[k] || {};
+        const peer = link.hsrp && link.hsrp.group === g && (link.hsrp.version || 1) === (c.hsrpVersion || 1) ? link.hsrp : null;
+        const vip = cfg.ip || (peer ? peer.vip : null);
+        const prio = cfg.prio != null ? cfg.prio : 100;
+        const key = k + "|" + g;
+        let state;
+        if (!linkUp(st, k) || !c.ip || !vip) state = "Init";
+        else if (!peer) state = "Active";
+        else {
+          const hisPrio = peer.prio != null ? peer.prio : 100;
+          const mineBetter = prio > hisPrio || (prio === hisPrio && ip2n(c.ip.addr) > ip2n(peer.ip));
+          const prev = st.hsrpMem[key] || "Standby"; // 相手が先に Active になっている
+          if (prev === "Active") state = peer.preempt && !mineBetter ? "Standby" : "Active";
+          else state = cfg.preempt && prio > hisPrio ? "Active" : "Standby";
+        }
+        out.push({ k, g, cfg, peer, vip, prio, state, key });
+      });
+    });
+    return out;
+  }
+  const hsrpMac = (g, v) => (v === 2 ? "0000.0c9f.f" + g.toString(16).padStart(3, "0") : "0000.0c07.ac" + g.toString(16).padStart(2, "0"));
+  function showStandbyBrief(st) {
+    const out = ["                     P indicates configured to preempt.", "                     |", "Interface   Grp  Pri P State   Active          Standby         Virtual IP"];
+    hsrpGroups(st).forEach((h) => {
+      const act = h.state === "Active" ? "local" : h.peer && h.state !== "Init" ? h.peer.ip : "unknown";
+      const sby = h.state === "Standby" ? "local" : h.peer && h.state === "Active" ? h.peer.ip : "unknown";
+      out.push(pad(h.k, 12) + pad(h.g, 5) + String(h.prio).padStart(3) + " " + (h.cfg.preempt ? "P" : " ") + " " + pad(h.state, 8) + pad(act, 16) + pad(sby, 16) + (h.vip || "unknown"));
+    });
+    return out;
+  }
+  function showStandby(st) {
+    const out = [];
+    hsrpGroups(st).forEach((h) => {
+      const v = st.ifs[h.k].hsrpVersion || 1;
+      out.push(longIf(h.k) + " - Group " + h.g + (v === 2 ? " (version 2)" : ""), "  State is " + h.state);
+      out.push("  Virtual IP address is " + (h.vip || "unknown"));
+      out.push("  Active virtual MAC address is " + hsrpMac(h.g, v) + (h.state === "Active" ? " (MAC In Use)" : ""));
+      out.push("    Local virtual MAC address is " + hsrpMac(h.g, v) + " (v" + v + " default)");
+      out.push("  Hello time 3 sec, hold time 10 sec");
+      out.push("  Preemption " + (h.cfg.preempt ? "enabled" : "disabled"));
+      out.push("  Active router is " + (h.state === "Active" ? "local" : h.peer ? h.peer.ip + ", priority " + (h.peer.prio != null ? h.peer.prio : 100) : "unknown"));
+      out.push("  Standby router is " + (h.state === "Standby" ? "local" : h.peer && h.state === "Active" ? h.peer.ip + ", priority " + (h.peer.prio != null ? h.peer.prio : 100) : "unknown"));
+      out.push("  Priority " + h.prio + " (" + (h.cfg.prio != null ? "configured " + h.cfg.prio : "default 100") + ")");
+      out.push('  Group name is "hsrp-' + h.k + "-" + h.g + '" (default)', "");
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------- ルータ: アクセスリスト（標準）と NAT
+  function aclPermits(st, n, ip) {
+    const list = st.acls[n];
+    if (!list) return false;
+    for (const e of list) {
+      const hit = e.any || (e.host ? e.host === ip : wildMatch(ip, e.addr, e.wild));
+      if (hit) return e.action === "permit";
+    }
+    return false; // 最後に見えない deny がある
+  }
+  function aclLine(e) {
+    return e.action + " " + (e.any ? "any" : e.host ? (e.forRun ? "host " : "") + e.host : e.addr + (e.forRun ? " " : ", wildcard bits ") + e.wild);
+  }
+  const natInside = (st) => Object.keys(st.ifs).sort(ifSortBrief).filter((k) => st.ifs[k].nat === "inside");
+  const natOutside = (st) => Object.keys(st.ifs).sort(ifSortBrief).filter((k) => st.ifs[k].nat === "outside");
+  // LAN の端末（link.hosts）が、インターネットの Web サーバと通信しているとして、変換の表を作る
+  function natTranslations(st) {
+    const out = [];
+    const exitIf = natOutside(st).find((k) => linkUp(st, k) && st.ifs[k].ip);
+    st.natStatic.forEach((r) => out.push({ pro: "---", ig: r.global, il: r.local, ol: "---", og: "---", stat: true }));
+    if (!exitIf) return out;
+    const dest = st.natDest || "198.51.100.10";
+    const used = {};
+    natInside(st).filter((k) => linkUp(st, k)).forEach((k) => {
+      ((st.links[k] && st.links[k].hosts) || []).forEach((h, i) => {
+        const port = 51000 + i * 7;
+        const stat = st.natStatic.find((r) => r.local === h);
+        let ig = null;
+        if (stat) ig = stat.global;
+        else {
+          const rule = st.natDynamic.find((r) => aclPermits(st, r.acl, h));
+          if (!rule) return;
+          if (rule.iface) {
+            const c = st.ifs[rule.iface];
+            if (!c || !c.ip || st.ifs[rule.iface].nat !== "outside") return;
+            if (!rule.overload && used[c.ip.addr]) return; // overload がないと、1つのアドレスは1台しか使えない
+            ig = c.ip.addr;
+          } else {
+            const pool = st.pools[rule.pool];
+            if (!pool) return;
+            const free = [];
+            for (let n = ip2n(pool.start); n <= ip2n(pool.end); n++) free.push(n2ip(n));
+            ig = rule.overload ? free[0] : free.find((a) => !used[a]);
+            if (!ig) return; // プールが足りない
+          }
+          used[ig] = true;
+        }
+        out.push({ pro: "tcp", ig: ig + ":" + port, il: h + ":" + port, ol: dest + ":443", og: dest + ":443", host: h });
+      });
+    });
+    return out;
+  }
+  function showNatTranslations(st) {
+    const rows = natTranslations(st);
+    if (!rows.length) return [];
+    const out = ["Pro Inside global         Inside local          Outside local         Outside global"];
+    rows.sort((a, b) => (a.stat === b.stat ? 0 : a.stat ? 1 : -1)).forEach((r) => out.push(pad(r.pro, 4) + pad(r.ig, 22) + pad(r.il, 22) + pad(r.ol, 22) + r.og));
+    out.push("Total number of translations: " + rows.length);
+    return out;
+  }
+  function showNatStatistics(st) {
+    const rows = natTranslations(st);
+    const stat = rows.filter((r) => r.stat).length, ext = rows.filter((r) => r.pro === "tcp").length;
+    const out = ["Total active translations: " + rows.length + " (" + stat + " static, " + (rows.length - stat) + " dynamic; " + ext + " extended)", "Outside interfaces:"];
+    natOutside(st).forEach((k) => out.push("  " + longIf(k)));
+    out.push("Inside interfaces:");
+    natInside(st).forEach((k) => out.push("  " + longIf(k)));
+    out.push("Hits: " + ext * 40 + "  Misses: " + ext, "Dynamic mappings:", "-- Inside Source");
+    st.natDynamic.forEach((r, i) => out.push("[Id: " + (i + 1) + "] access-list " + r.acl + " " + (r.iface ? "interface " + longIf(r.iface) : "pool " + r.pool) + (r.overload ? " overload" : "") + " refcount " + rows.filter((x) => x.host && aclPermits(st, r.acl, x.host)).length));
+    return out;
+  }
+  function showAccessLists(st) {
+    const out = [];
+    const rows = natTranslations(st);
+    Object.keys(st.acls).map(Number).sort((a, b) => a - b).forEach((n) => {
+      out.push("Standard IP access list " + n);
+      st.acls[n].forEach((e) => {
+        const hits = rows.filter((r) => r.host && (e.any || (e.host ? e.host === r.host : wildMatch(r.host, e.addr, e.wild)))).length;
+        out.push("    " + e.seq + " " + aclLine(e) + (hits ? " (" + hits + " matches)" : ""));
+      });
+    });
+    return out;
+  }
+
+  // ---------------------------------------------------------------- ルータ: NTP
+  function reachable(st, ip) {
+    return ping(st, ip)[2] === "!!!!!";
+  }
+  function ntpPeers(st) {
+    const peers = st.ntp.map((ip) => {
+      const s = st.ntpServers[ip];
+      return { ip, ok: !!s && reachable(st, ip), stratum: s ? s.stratum : 16, ref: s ? s.ref : ".INIT." };
+    });
+    const best = peers.filter((p) => p.ok).sort((a, b) => a.stratum - b.stratum)[0];
+    peers.forEach((p) => (p.mark = !p.ok ? " " : p === best ? "*" : "+"));
+    return { peers, best };
+  }
+  function showNtpAssociations(st) {
+    const { peers } = ntpPeers(st);
+    const out = ["", "  address         ref clock       st   when   poll reach  delay  offset   disp"];
+    peers.forEach((p) => out.push(p.mark + "~" + pad(p.ip, 16) + pad(p.ok ? p.ref : ".INIT.", 16) + String(p.ok ? p.stratum : 16).padStart(2) + (p.ok ? "     12     64   377  1.012   0.214  0.950" : "      -     64     0  0.000   0.000 15937.")));
+    out.push(" * sys.peer, # selected, + candidate, - outlyer, x falseticker, ~ configured");
+    return out;
+  }
+  function showNtpStatus(st) {
+    const { best } = ntpPeers(st);
+    if (!best) return ["Clock is unsynchronized, stratum 16, no reference clock", "nominal freq is 250.0000 Hz, actual freq is 250.0000 Hz, precision is 2**10"];
+    return ["Clock is synchronized, stratum " + (best.stratum + 1) + ", reference is " + best.ip, "nominal freq is 250.0000 Hz, actual freq is 250.0000 Hz, precision is 2**10", "ntp uptime is 150000 (1/100 of seconds), resolution is 4000"];
+  }
+
+  function svcIfLines(st, k) {
+    const c = st.ifs[k], out = [];
+    if (c.nat) out.push(" ip nat " + c.nat);
+    if (c.hsrpVersion === 2) out.push(" standby version 2");
+    Object.keys(c.standby || {}).map(Number).sort((a, b) => a - b).forEach((g) => {
+      const s = c.standby[g];
+      if (s.ip) out.push(" standby " + g + " ip " + s.ip);
+      if (s.prio != null) out.push(" standby " + g + " priority " + s.prio);
+      if (s.preempt) out.push(" standby " + g + " preempt");
+    });
+    return out;
+  }
+  function svcGlobalLines(st) {
+    const out = [];
+    Object.keys(st.pools).forEach((n) => out.push("ip nat pool " + n + " " + st.pools[n].start + " " + st.pools[n].end + " netmask " + st.pools[n].mask));
+    st.natDynamic.forEach((r) => out.push("ip nat inside source list " + r.acl + " " + (r.iface ? "interface " + longIf(r.iface) : "pool " + r.pool) + (r.overload ? " overload" : "")));
+    st.natStatic.forEach((r) => out.push("ip nat inside source static " + r.local + " " + r.global));
+    if (out.length) out.push("!");
+    Object.keys(st.acls).map(Number).sort((a, b) => a - b).forEach((n) => st.acls[n].forEach((e) => out.push("access-list " + n + " " + aclLine(Object.assign({ forRun: true }, e)))));
+    if (Object.keys(st.acls).length) out.push("!");
+    st.ntp.forEach((ip) => out.push("ntp server " + ip));
+    if (st.ntp.length) out.push("!");
+    return out;
+  }
+
+  function hsrpLogs(st, log) {
+    const seen = new Set();
+    hsrpGroups(st).forEach((h) => {
+      seen.add(h.key);
+      const prev = st.hsrpMem[h.key];
+      if (prev === h.state) return;
+      if (h.state === "Active" || h.state === "Standby") {
+        log("%HSRP-5-STATECHANGE: " + longIf(h.k) + " Grp " + h.g + " state " + (prev === "Active" ? "Active" : prev === "Standby" ? "Standby" : "Speak") + " -> " + h.state);
+      }
+      st.hsrpMem[h.key] = h.state;
+    });
+    Object.keys(st.hsrpMem).forEach((key) => { if (!seen.has(key)) delete st.hsrpMem[key]; });
+  }
+
+  const SVC_DEFS = [
+    ["user priv", "show standby", (c) => c.out(showStandby(c.st)), "rt"],
+    ["user priv", "show standby brief", (c) => c.out(showStandbyBrief(c.st)), "rt"],
+    ["user priv", "show ip nat translations", (c) => c.out(showNatTranslations(c.st)), "rt"],
+    ["user priv", "show ip nat statistics", (c) => c.out(showNatStatistics(c.st)), "rt"],
+    ["user priv", "show access-lists", (c) => c.out(showAccessLists(c.st)), "rt"],
+    ["user priv", "show ntp associations", (c) => c.out(showNtpAssociations(c.st)), "rt"],
+    ["user priv", "show ntp status", (c) => c.out(showNtpStatus(c.st)), "rt"],
+
+    ["if", "standby <hgrp> ip <ip>", (c) => ospfOnIfs(c, (i) => { i.standby[c.args[0]] = Object.assign(i.standby[c.args[0]] || {}, { ip: c.args[1] }); }), "rt"],
+    ["if", "standby <hgrp> priority <hprio>", (c) => ospfOnIfs(c, (i) => { i.standby[c.args[0]] = Object.assign(i.standby[c.args[0]] || {}, { prio: c.args[1] }); }), "rt"],
+    ["if", "standby <hgrp> preempt", (c) => ospfOnIfs(c, (i) => { i.standby[c.args[0]] = Object.assign(i.standby[c.args[0]] || {}, { preempt: true }); }), "rt"],
+    ["if", "no standby <hgrp> preempt", (c) => ospfOnIfs(c, (i) => { if (i.standby[c.args[0]]) i.standby[c.args[0]].preempt = false; }), "rt"],
+    ["if", "no standby <hgrp> priority", (c) => ospfOnIfs(c, (i) => { if (i.standby[c.args[0]]) i.standby[c.args[0]].prio = null; }), "rt"],
+    ["if", "no standby <hgrp> ip", (c) => ospfOnIfs(c, (i) => { if (i.standby[c.args[0]]) i.standby[c.args[0]].ip = null; }), "rt"],
+    ["if", "no standby <hgrp>", (c) => ospfOnIfs(c, (i) => delete i.standby[c.args[0]]), "rt"],
+    ["if", "standby version (1|2)", (c) => ospfOnIfs(c, (i) => (i.hsrpVersion = c.cmd.ctx.endsWith("2") ? 2 : null)), "rt"],
+    ["if", "ip nat (inside|outside)", (c) => ospfOnIfs(c, (i) => (i.nat = c.cmd.ctx.split(" ").pop())), "rt"],
+    ["if", "no ip nat (inside|outside)", (c) => ospfOnIfs(c, (i) => (i.nat = null)), "rt"],
+
+    ["config", "access-list <acl> (permit|deny) <ip> <wild>", (c) => aclAdd(c, { addr: c.args[1], wild: c.args[2] }), "rt"],
+    ["config", "access-list <acl> (permit|deny) host <ip>", (c) => aclAdd(c, { host: c.args[1] }), "rt"],
+    ["config", "access-list <acl> (permit|deny) any", (c) => aclAdd(c, { any: true }), "rt"],
+    ["config", "no access-list <acl>", (c) => delete c.st.acls[c.args[0]], "rt"],
+    ["config", "ip nat pool <word> <ip> <ip> netmask <mask>", (c) => (c.st.pools[c.args[0]] = { start: c.args[1], end: c.args[2], mask: c.args[3] }), "rt"],
+    ["config", "no ip nat pool <word>", (c) => delete c.st.pools[c.args[0]], "rt"],
+    ["config", "ip nat inside source list <acl> interface <if> overload", (c) => natDyn(c, { iface: c.args[1], overload: true }), "rt"],
+    ["config", "ip nat inside source list <acl> interface <if>", (c) => natDyn(c, { iface: c.args[1], overload: false }), "rt"],
+    ["config", "ip nat inside source list <acl> pool <word> overload", (c) => natDyn(c, { pool: c.args[1], overload: true }), "rt"],
+    ["config", "ip nat inside source list <acl> pool <word>", (c) => natDyn(c, { pool: c.args[1], overload: false }), "rt"],
+    ["config", "no ip nat inside source list <acl> <line>", (c) => (c.st.natDynamic = c.st.natDynamic.filter((r) => r.acl !== c.args[0])), "rt"],
+    ["config", "ip nat inside source static <ip> <ip>", (c) => {
+      c.st.natStatic = c.st.natStatic.filter((r) => r.local !== c.args[0]);
+      c.st.natStatic.push({ local: c.args[0], global: c.args[1] });
+    }, "rt"],
+    ["config", "no ip nat inside source static <ip> <ip>", (c) => (c.st.natStatic = c.st.natStatic.filter((r) => !(r.local === c.args[0] && r.global === c.args[1]))), "rt"],
+    ["config", "ntp server <ip>", (c) => { if (!c.st.ntp.includes(c.args[0])) c.st.ntp.push(c.args[0]); }, "rt"],
+    ["config", "no ntp server <ip>", (c) => (c.st.ntp = c.st.ntp.filter((x) => x !== c.args[0])), "rt"],
+  ];
+  function aclAdd(c, entry) {
+    const n = c.args[0], list = c.st.acls[n] || (c.st.acls[n] = []);
+    list.push(Object.assign({ seq: (list.length + 1) * 10, action: c.cmd.ctx.includes(" deny") ? "deny" : "permit" }, entry));
+  }
+  function natDyn(c, rule) {
+    if (rule.pool && !c.st.pools[rule.pool]) { c.out(["%Pool " + rule.pool + " not found"]); }
+    c.st.natDynamic = c.st.natDynamic.filter((r) => r.acl !== c.args[0]);
+    c.st.natDynamic.push(Object.assign({ acl: c.args[0] }, rule));
+  }
+  ROUTER_DEFS.push(...SVC_DEFS);
+
   // ルータの動きから出るログ（隣接の変化、エリアの不一致、BGP の接続）
   function routerLogs(st, log) {
     if (st.ospf) st.lastPid = st.ospf.pid;
@@ -1141,6 +1408,7 @@
     });
     est.forEach((ip) => { if (!st.bgpUp.has(ip)) { log("%BGP-5-ADJCHANGE: neighbor " + ip + " Up"); st.bgpUp.add(ip); } });
     [...st.bgpUp].forEach((ip) => { if (!est.has(ip)) { log("%BGP-5-ADJCHANGE: neighbor " + ip + " Down Neighbor deleted"); st.bgpUp.delete(ip); } });
+    hsrpLogs(st, log);
   }
 
   // ---------------------------------------------------------------- コマンドの定義
@@ -1627,6 +1895,126 @@
       ],
     },
 
+
+    // ---------------------------------------------------------------- IP サービス
+    hsrp: {
+      title: "HSRP でゲートウェイを冗長化する",
+      device: "router",
+      figure: '<svg viewBox="0 0 640 210" role="img" aria-label="R1とR2がLANのスイッチにつながり、PCは仮想IPをゲートウェイにする"><path class="ln" d="M165 76 L290 108 M475 76 L350 108 M300 140 L235 166 M340 140 L405 166"/><rect class="sw" x="80" y="20" width="170" height="56" rx="18"/><text class="t" x="165" y="44" text-anchor="middle">R1</text><text class="s" x="165" y="62" text-anchor="middle">Gi0/1 192.168.1.2</text><rect class="box" x="390" y="20" width="170" height="56" rx="18"/><text class="t" x="475" y="44" text-anchor="middle">R2</text><text class="s" x="475" y="62" text-anchor="middle">192.168.1.3（いまは Active）</text><rect class="tag" x="255" y="36" width="130" height="24" rx="5"/><text class="s" x="320" y="52" text-anchor="middle">仮想 IP 192.168.1.1</text><rect class="pc" x="260" y="108" width="120" height="32" rx="8"/><text class="s" x="320" y="129" text-anchor="middle">LAN（スイッチ）</text><rect class="pc" x="170" y="166" width="130" height="30" rx="8"/><text class="s" x="235" y="186" text-anchor="middle">PC（GW 192.168.1.1）</text><rect class="pc" x="340" y="166" width="130" height="30" rx="8"/><text class="s" x="405" y="186" text-anchor="middle">PC（GW 192.168.1.1）</text></svg>',
+      lead: "PC のデフォルトゲートウェイ 192.168.1.1 を、R1 と R2 の HSRP で冗長化する。いまは R2 だけが Active。",
+      facts: [["R1 Gi0/1", "192.168.1.2/24 → PC の LAN"], ["R2", "192.168.1.3。HSRP グループ 1、仮想 IP 192.168.1.1、優先度 100、preempt なし。いまは Active"], ["PC", "デフォルトゲートウェイは 192.168.1.1（仮想 IP）"]],
+      goals: [
+        "R1 の Gi0/1 で、HSRP グループ 1 の仮想 IP を 192.168.1.1 にする",
+        "R1 の優先度を 110 にする",
+        "R1 が Active になるようにする（R2 から役割を奪う）",
+        "show standby brief で確かめる",
+      ],
+      links: {
+        "Gi0/0": { hosts: ["10.0.0.2"] },
+        "Gi0/1": { hosts: ["192.168.1.10", "192.168.1.11"], hsrp: { group: 1, vip: "192.168.1.1", ip: "192.168.1.3", prio: 100, preempt: false } },
+      },
+      setup(st) {
+        setIp(st, "Gi0/0", "10.0.0.1", "255.255.255.252");
+        setIp(st, "Gi0/1", "192.168.1.2", "255.255.255.0");
+      },
+      checks: [
+        ["グループ 1 の仮想 IP が 192.168.1.1", (st) => hsrpGroups(st).some((h) => h.k === "Gi0/1" && h.g === 1 && h.vip === "192.168.1.1" && h.cfg.ip === "192.168.1.1")],
+        ["R1 の優先度が 110", (st) => hsrpGroups(st).some((h) => h.k === "Gi0/1" && h.g === 1 && h.prio === 110)],
+        ["preempt が入っている", (st) => hsrpGroups(st).some((h) => h.k === "Gi0/1" && h.g === 1 && h.cfg.preempt)],
+        ["R1 が Active", (st) => hsrpGroups(st).some((h) => h.k === "Gi0/1" && h.g === 1 && h.state === "Active")],
+      ],
+      hint:
+        "<p>HSRP はインタフェースで <code>standby 1 ip 192.168.1.1</code>。<br>優先度は <code>standby 1 priority 110</code>。<br>優先度を上げただけでは Active は代わらない。<strong>preempt</strong>（<code>standby 1 preempt</code>）がないと、いまの Active から役割を奪わない。</p>",
+      answer: [
+        "enable",
+        "configure terminal",
+        "interface Gi0/1",
+        " standby 1 ip 192.168.1.1   ! グループ 1 の仮想 IP（R2 と同じ）",
+        " standby 1 priority 110   ! R2（100）より大きくする",
+        " standby 1 preempt   ! 優先度が高ければ Active を奪う",
+        " end",
+        "show standby brief   ! State が Active、Standby が 192.168.1.3",
+      ],
+    },
+
+    nat: {
+      title: "NAT・PAT でインターネットに出る",
+      device: "router",
+      figure: '<svg viewBox="0 0 640 170" role="img" aria-label="社内LAN、R1、ISP、Webサーバが並ぶ。R1のGi0/0が内側、Gi0/1が外側"><path class="ln" d="M160 70 H245 M375 70 H440 M510 70 H536"/><rect class="pc" x="10" y="42" width="150" height="56" rx="8"/><text class="t" x="85" y="66" text-anchor="middle">社内 LAN</text><text class="s" x="85" y="84" text-anchor="middle">PC .10〜.12・サーバ .20</text><rect class="sw" x="245" y="42" width="130" height="56" rx="18"/><text class="t" x="310" y="75" text-anchor="middle">R1</text><rect class="box" x="440" y="46" width="70" height="48" rx="18"/><text class="t" x="475" y="75" text-anchor="middle">ISP</text><rect class="pc" x="536" y="42" width="98" height="56" rx="8"/><text class="t" x="585" y="66" text-anchor="middle">Web</text><text class="s" x="585" y="84" text-anchor="middle">198.51.100.10</text><text class="s" x="237" y="62" text-anchor="end">Gi0/0</text><text class="s" x="237" y="92" text-anchor="end">inside</text><text class="s" x="383" y="62">Gi0/1</text><text class="s" x="383" y="92">outside</text><text class="s" x="320" y="140" text-anchor="middle">内側の 192.168.1.x を、外に出るときに 203.0.113.x に変換する</text></svg>',
+      lead: "社内の LAN からインターネットに出られるように、R1 で NAT を設定する。",
+      facts: [["Gi0/0", "192.168.1.1/24 → 社内の LAN（PC 192.168.1.10〜12、サーバ 192.168.1.20）"], ["Gi0/1", "203.0.113.1/29 → ISP"], ["使えるアドレス", "203.0.113.1〜203.0.113.5（ISP から割り当て）"]],
+      goals: [
+        "Gi0/0 を内側、Gi0/1 を外側にする",
+        "192.168.1.0/24 の PC は、Gi0/1 のアドレスを共有して外に出る（PAT）",
+        "サーバ 192.168.1.20 は、いつも 203.0.113.2 に変換する（静的 NAT）",
+        "show ip nat translations で確かめる",
+      ],
+      links: {
+        "Gi0/0": { hosts: ["192.168.1.10", "192.168.1.11", "192.168.1.12", "192.168.1.20"] },
+        "Gi0/1": { hosts: ["203.0.113.6"] },
+      },
+      natDest: "198.51.100.10",
+      setup(st) {
+        setIp(st, "Gi0/0", "192.168.1.1", "255.255.255.0");
+        setIp(st, "Gi0/1", "203.0.113.1", "255.255.255.248");
+      },
+      checks: [
+        ["Gi0/0 が inside、Gi0/1 が outside", (st) => st.ifs["Gi0/0"].nat === "inside" && st.ifs["Gi0/1"].nat === "outside"],
+        ["PC 3台が 203.0.113.1 に変換される（PAT）", (st) => ["192.168.1.10", "192.168.1.11", "192.168.1.12"].every((h) => natTranslations(st).some((r) => r.host === h && r.ig.startsWith("203.0.113.1:")))],
+        ["overload（PAT）で設定している", (st) => st.natDynamic.some((r) => r.iface === "Gi0/1" && r.overload)],
+        ["サーバ 192.168.1.20 が 203.0.113.2 に固定（静的 NAT）", (st) => st.natStatic.some((r) => r.local === "192.168.1.20" && r.global === "203.0.113.2")],
+      ],
+      hint:
+        "<p>内側・外側は、インタフェースで <code>ip nat inside</code>／<code>ip nat outside</code>。<br>PAT は、変換する相手をアクセスリストで選び（<code>access-list 1 permit 192.168.1.0 0.0.0.255</code>）、<code>ip nat inside source list 1 interface Gi0/1 overload</code>。<br>静的 NAT は <code>ip nat inside source static 192.168.1.20 203.0.113.2</code>。</p>",
+      answer: [
+        "enable",
+        "configure terminal",
+        "interface Gi0/0",
+        " ip nat inside   ! LAN 側が内側",
+        "interface Gi0/1",
+        " ip nat outside   ! ISP 側が外側",
+        " exit",
+        "access-list 1 permit 192.168.1.0 0.0.0.255   ! 変換する相手（社内の LAN）",
+        "ip nat inside source list 1 interface Gi0/1 overload   ! Gi0/1 のアドレスを共有（PAT）",
+        "ip nat inside source static 192.168.1.20 203.0.113.2   ! サーバは 1 対 1 で固定",
+        "end",
+        "show ip nat translations   ! Inside local と Inside global の対応",
+      ],
+    },
+
+    ntp: {
+      title: "NTP で時刻を合わせる",
+      device: "router",
+      figure: '<svg viewBox="0 0 640 160" role="img" aria-label="R1と2台のNTPサーバが同じLANにある"><path class="ln" d="M190 78 H300 M300 40 V118 M300 40 H430 M300 118 H430"/><rect class="sw" x="40" y="50" width="150" height="56" rx="18"/><text class="t" x="115" y="74" text-anchor="middle">R1</text><text class="s" x="115" y="92" text-anchor="middle">Gi0/0 10.0.0.1</text><rect class="box" x="430" y="14" width="200" height="52" rx="10"/><text class="t" x="530" y="36" text-anchor="middle">NTP サーバ 1</text><text class="s" x="530" y="54" text-anchor="middle">10.0.0.123（stratum 1・GPS）</text><rect class="box" x="430" y="92" width="200" height="52" rx="10"/><text class="t" x="530" y="114" text-anchor="middle">NTP サーバ 2</text><text class="s" x="530" y="132" text-anchor="middle">10.0.0.124（stratum 2）</text></svg>',
+      lead: "R1 の時刻を、社内の NTP サーバに合わせる。",
+      facts: [["Gi0/0", "10.0.0.1/24 → サーバの LAN"], ["NTP サーバ 1", "10.0.0.123（stratum 1。GPS で時刻を得ている）"], ["NTP サーバ 2", "10.0.0.124（stratum 2。サーバ 1 に合わせている）"]],
+      goals: [
+        "2台とも NTP サーバとして設定する",
+        "show ntp associations で、どちらを基準に選んだかを確かめる",
+        "show ntp status で、R1 の stratum を確かめる",
+      ],
+      links: { "Gi0/0": { hosts: ["10.0.0.123", "10.0.0.124"] } },
+      ntpServers: { "10.0.0.123": { stratum: 1, ref: ".GPS." }, "10.0.0.124": { stratum: 2, ref: "10.0.0.123" } },
+      setup(st) {
+        setIp(st, "Gi0/0", "10.0.0.1", "255.255.255.0");
+      },
+      checks: [
+        ["10.0.0.123 と 10.0.0.124 を設定している", (st) => st.ntp.includes("10.0.0.123") && st.ntp.includes("10.0.0.124")],
+        ["10.0.0.123 に同期している（R1 は stratum 2）", (st) => { const b = ntpPeers(st).best; return !!b && b.ip === "10.0.0.123"; }],
+      ],
+      hint:
+        "<p><code>ntp server 10.0.0.123</code> のように1台ずつ書く。<br>stratum は「基準の時計から何段目か」。小さい方が基準に選ばれ、R1 はその1段下になる。<br>本物の機器では、同期するまで数分かかる。</p>",
+      answer: [
+        "enable",
+        "configure terminal",
+        "ntp server 10.0.0.123   ! stratum 1 のサーバ",
+        "ntp server 10.0.0.124   ! 予備のサーバ",
+        "end",
+        "show ntp associations   ! * が付いたのが基準（sys.peer）",
+        "show ntp status   ! synchronized、stratum 2",
+      ],
+    },
+
   };
 
   // ---------------------------------------------------------------- 画面
@@ -1785,6 +2173,8 @@
       if (text) { hist.push(raw); }
       hi = hist.length;
       if (!text) { scroll(); return; }
+      // ! で始まる行はコメント（設定を貼り付けたときに入っている）。IOS と同じく何もしない
+      if (text.startsWith("!")) { refresh(); scroll(); return; }
       const { tokens, mode } = ctxFor(raw);
       const T = CMDS[st.dev];
       let r = matchCmd(tokens, T[mode] || []);
@@ -1894,6 +2284,16 @@
           input.value = "";
         }
       }
+    });
+    // 複数行を貼り付けたら、1行ずつ打って Enter を押したのと同じように実行する（最後の行に改行がなければ入力欄に残す）
+    input.addEventListener("paste", (e) => {
+      const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
+      if (!/[\r\n]/.test(text)) return;
+      e.preventDefault();
+      const lines = (input.value + text).replace(/\r\n?/g, "\n").split("\n");
+      const last = lines.pop();
+      lines.forEach((l) => run(l));
+      input.value = last;
     });
     // ? は Enter を待たずに候補を出す（スマホのキーボードでも動くよう、入力された文字で見る）
     input.addEventListener("input", () => {
@@ -2033,6 +2433,6 @@
       });
     },
     // 試験用（ブラウザのコンソールから動きを確かめる）
-    _test: { LABS, newState, matchCmd, tokenize, CMDS, rib, ospfAdj, bgpPeers },
+    _test: { LABS, newState, matchCmd, tokenize, CMDS, rib, ospfAdj, bgpPeers, hsrpGroups, natTranslations },
   };
 })();

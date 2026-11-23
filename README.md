@@ -36,7 +36,7 @@ Certain classes and data attributes turn into interactive components when the pa
 | Bridge ID calculator | `<div class="bid-calc"></div>` |
 | Troubleshooting step | `<details class="step"><summary>Symptom</summary><dl><dt>Check</dt><dd>…</dd>…</dl></details>` |
 | Flashcards | `<div class="flashcards"><div class="fc"><div class="fc-q">Question</div><div class="fc-a">Answer</div></div></div>` |
-| CLI lab | `<div class="cli-lab" data-lab="trunk"></div>`. A small IOS-like simulator where you type commands and check your answer. Each lab (task, initial state, neighbor devices, checks, model answer) is defined in `LABS` in [js/cli-lab.js](js/cli-lab.js); the available labs are `trunk`, `etherchannel` and `stp` (switch) and `ospf`, `ospf-cost`, `ospf-fix` and `ebgp` (router, with `device: "router"`). Supported commands are defined in `DEFS` (switch) and `ROUTER_DEFS` (router) in the same file |
+| CLI lab | `<div class="cli-lab" data-lab="trunk"></div>`. A small IOS-like simulator where you type commands and check your answer. Each lab (task, initial state, neighbor devices, checks, model answer) is defined in `LABS` in [js/cli-lab.js](js/cli-lab.js); the available labs are `trunk`, `etherchannel` and `stp` (switch) , `ospf`, `ospf-cost`, `ospf-fix`, `ebgp`, `hsrp`, `nat` and `ntp` (router, with `device: "router"`). Supported commands are defined in `DEFS` (switch) and `ROUTER_DEFS` (router) in the same file |
 | Two columns | `<div class="two">…</div>` |
 
 Markdown notes (`.md`) are still supported.

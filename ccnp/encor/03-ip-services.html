@@ -1,0 +1,398 @@
+<h1>IP サービス（FHRP・NAT・NTP・マルチキャスト）</h1>
+
+<div class="chips">
+  <span class="chip">HSRP・VRRP・GLBP</span>
+  <span class="chip">静的 NAT・動的 NAT・PAT</span>
+  <span class="chip">NTP・PTP</span>
+  <span class="chip">IGMP・PIM</span>
+</div>
+
+<p>ENCOR の「インフラ」分野のうち、IP サービスで問われるのは次の4つ。FHRP と NAT は<strong>設定して、show で確かめる</strong>ところまで、NTP・PTP とマルチキャストは<strong>しくみを説明できる</strong>ところまでを目指す。</p>
+
+<table>
+  <thead><tr><th>テーマ</th><th>出題のポイント</th></tr></thead>
+  <tbody>
+    <tr><td><strong>FHRP</strong></td><td><strong>HSRP</strong> と <strong>VRRP</strong> の設定と確認。優先度、preempt、トラッキング</td></tr>
+    <tr><td><strong>NAT・PAT</strong></td><td>静的 NAT、動的 NAT、PAT の設定と確認。4つのアドレスの呼び方</td></tr>
+    <tr><td><strong>NTP・PTP</strong></td><td>NTP の stratum とサーバの設定。PTP との違い</td></tr>
+    <tr><td><strong>マルチキャスト</strong></td><td>RPF チェック、PIM-SM、IGMP v2・v3、SSM、Bidir-PIM、MSDP のしくみ</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<h2>1. FHRP（ゲートウェイの冗長化）</h2>
+
+<h3>何のための技術か</h3>
+<p>PC はデフォルトゲートウェイを1つしか設定できない。そのルータが止まると、LAN の外へ出られなくなる。<strong>FHRP</strong>（First Hop Redundancy Protocol）は、複数のルータで<strong>1つの仮想 IP アドレスと仮想 MAC アドレス</strong>を共有し、そのうちの1台が実際に転送する。止まったら、別のルータが同じ仮想アドレスを引き継ぐので、PC の設定は変えなくてよい。</p>
+
+<figure class="fig">
+  <svg viewBox="0 0 640 200" role="img" aria-label="R1とR2が仮想IPを共有し、PCは仮想IPをゲートウェイにする。R1がActive、R2がStandby">
+    <path class="ln" d="M165 76 L290 108 M475 76 L350 108 M300 140 L235 160 M340 140 L405 160"/>
+    <rect class="sw" x="80" y="20" width="170" height="56" rx="18"/><text class="t" x="165" y="44" text-anchor="middle">R1（Active）</text><text class="s" x="165" y="62" text-anchor="middle">優先度 110・実際に転送</text>
+    <rect class="box" x="390" y="20" width="170" height="56" rx="18"/><text class="t" x="475" y="44" text-anchor="middle">R2（Standby）</text><text class="s" x="475" y="62" text-anchor="middle">優先度 100・待機</text>
+    <rect class="tag" x="255" y="36" width="130" height="24" rx="5"/><text class="s" x="320" y="52" text-anchor="middle">仮想 IP 192.168.1.1</text>
+    <rect class="pc" x="260" y="108" width="120" height="32" rx="8"/><text class="s" x="320" y="129" text-anchor="middle">LAN（スイッチ）</text>
+    <rect class="pc" x="170" y="160" width="130" height="30" rx="8"/><text class="s" x="235" y="180" text-anchor="middle">PC（GW 192.168.1.1）</text>
+    <rect class="pc" x="340" y="160" width="130" height="30" rx="8"/><text class="s" x="405" y="180" text-anchor="middle">PC（GW 192.168.1.1）</text>
+  </svg>
+</figure>
+
+<h3>HSRP・VRRP・GLBP の違い</h3>
+<table>
+  <thead><tr><th></th><th>HSRP</th><th>VRRP</th><th>GLBP</th></tr></thead>
+  <tbody>
+    <tr><td>規格</td><td>Cisco 独自</td><td><strong>標準</strong>（RFC 5798）</td><td>Cisco 独自</td></tr>
+    <tr><td>役割の名前</td><td><strong>Active</strong>・<strong>Standby</strong></td><td><strong>Master</strong>・<strong>Backup</strong></td><td>AVG（まとめ役）・AVF（転送役）</td></tr>
+    <tr><td>転送するルータ</td><td>Active の1台</td><td>Master の1台</td><td><strong>複数で分担</strong>（負荷分散）</td></tr>
+    <tr><td>優先度の既定</td><td>100</td><td>100（仮想 IP が自分のアドレスなら 255）</td><td>100</td></tr>
+    <tr><td><strong>preempt の既定</strong></td><td><strong>無効</strong></td><td><strong>有効</strong></td><td>無効（AVG）</td></tr>
+    <tr><td>仮想 IP</td><td>実アドレスとは別</td><td><strong>実アドレスと同じにもできる</strong></td><td>実アドレスとは別</td></tr>
+    <tr><td>仮想 MAC</td><td>v1：0000.0c07.acXX<br>v2：0000.0c9f.fXXX</td><td>0000.5e00.01XX</td><td>AVF ごとに別の MAC</td></tr>
+    <tr><td>宛先</td><td>v1：224.0.0.2<br>v2：224.0.0.102</td><td>224.0.0.18</td><td>224.0.0.102</td></tr>
+    <tr><td>タイマー</td><td>hello 3 秒・hold 10 秒</td><td>広告 1 秒</td><td>hello 3 秒・hold 10 秒</td></tr>
+  </tbody>
+</table>
+<p>XX はグループ番号（16 進数）。HSRP v1 のグループは 0〜255、<strong>v2 は 0〜4095</strong> で、IPv6 にも使える。<strong>v1 と v2 は通じない</strong>ので、両方のルータでそろえる。</p>
+
+<h3>Active の決まり方と preempt</h3>
+<ul>
+  <li><strong>優先度が大きい方</strong>が Active。同じなら、<strong>インタフェースの IP アドレスが大きい方</strong></li>
+  <li>HSRP は <strong>preempt が既定で無効</strong>。あとから優先度の高いルータが来ても、<strong>いまの Active から役割を奪わない</strong>。奪わせたいときは <code>standby 1 preempt</code></li>
+  <li>HSRP の状態は Initial → Learn → Listen → Speak → <strong>Standby</strong> → <strong>Active</strong> の順に進む。Speak で hello を出し合って役割を決める</li>
+</ul>
+
+<h3>トラッキング：上流が切れたら役割を譲る</h3>
+<p>Active のルータの<strong>上流（WAN 側）</strong>が切れても、LAN 側が生きていれば Active のままになり、PC の通信は行き止まりになる。<strong>トラッキング</strong>で上流を見張り、切れたら優先度を下げて、Standby に役割を譲る。</p>
+<pre data-cli="config" data-title="R1">
+track 1 interface GigabitEthernet0/0 line-protocol   ! 上流のインタフェースを見張る
+!
+interface GigabitEthernet0/1
+ standby 1 track 1 decrement 20   ! 切れたら優先度を 110 → 90 に下げる
+</pre>
+<div class="callout warning">
+  <p>譲るには、<strong>相手（R2）にも preempt が必要</strong>。R1 の優先度が 90 に下がっても、R2 に preempt がなければ R2 は Active にならない。</p>
+</div>
+
+<h3>設定例</h3>
+<div class="tabs">
+  <div data-tab="HSRP">
+<pre data-cli="config" data-title="R1">
+interface GigabitEthernet0/1
+ ip address 192.168.1.2 255.255.255.0
+ standby version 2   ! v2 にする（両方のルータでそろえる）
+ standby 1 ip 192.168.1.1   ! グループ 1 の仮想 IP（PC のゲートウェイ）
+ standby 1 priority 110   ! 既定の 100 より大きくして Active にする
+ standby 1 preempt   ! 優先度が高ければ Active を奪う
+</pre>
+<pre data-cli="config" data-title="R2">
+interface GigabitEthernet0/1
+ ip address 192.168.1.3 255.255.255.0
+ standby version 2
+ standby 1 ip 192.168.1.1   ! 同じグループ・同じ仮想 IP
+ standby 1 preempt   ! 優先度は既定の 100 のまま
+</pre>
+  </div>
+  <div data-tab="VRRP">
+<pre data-cli="config" data-title="R1（従来の書き方）">
+interface GigabitEthernet0/1
+ ip address 192.168.1.2 255.255.255.0
+ vrrp 1 ip 192.168.1.1   ! グループ 1 の仮想 IP
+ vrrp 1 priority 110   ! preempt は既定で有効
+</pre>
+<pre data-cli="config" data-title="R1（IOS XE の VRRPv3）">
+fhrp version vrrp v3   ! VRRPv3 の書き方を使う
+!
+interface GigabitEthernet0/1
+ vrrp 1 address-family ipv4   ! IPv4 のグループ 1
+  address 192.168.1.1 primary   ! 仮想 IP
+  priority 110
+</pre>
+  </div>
+</div>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show standby brief">
+R1# show standby brief
+                     P indicates configured to preempt.
+                     |
+Interface   Grp  <span data-tip="このルータの優先度">Pri</span> <span data-tip="P があれば preempt が有効">P</span> <span data-tip="このルータの役割。Active が実際に転送している">State</span>   <span data-tip="Active のルータ。local は自分">Active</span>          <span data-tip="Standby のルータ。Active が止まったら引き継ぐ">Standby</span>         <span data-tip="PC のゲートウェイにする仮想 IP">Virtual IP</span>
+Gi0/1       1    110 P Active  local           192.168.1.3     192.168.1.1
+</pre>
+<ul>
+  <li><code>show standby</code>：仮想 MAC アドレス、タイマー、preempt、トラッキングの状態まで出る</li>
+  <li><code>show vrrp brief</code>：VRRP の役割（Master・Backup）と優先度</li>
+</ul>
+
+<h3>よくあるトラブル</h3>
+<div class="steps">
+  <details class="step">
+    <summary>両方のルータが Active になる</summary>
+    <dl>
+      <dt>見る</dt><dd>両方の <code>show standby</code>（グループ番号、バージョン、仮想 IP）</dd>
+      <dt>原因</dt><dd>hello が相手に届いていない（VLAN やケーブル、ACL）、<strong>グループ番号やバージョンが違う</strong></dd>
+      <dt>直し方</dt><dd>グループ番号とバージョンをそろえ、LAN 側で互いに通信できることを確かめる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>優先度を上げたのに Active にならない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show standby brief</code> の P の欄</dd>
+      <dt>原因</dt><dd>HSRP は <strong>preempt が既定で無効</strong></dd>
+      <dt>直し方</dt><dd><code>standby 1 preempt</code> を入れる</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>上流が切れても Standby に切り替わらない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show standby</code> のトラッキングと優先度、相手の preempt</dd>
+      <dt>原因</dt><dd>トラッキングを設定していない、下げる値が足りない（相手の優先度を下回らない）、<strong>相手に preempt がない</strong></dd>
+      <dt>直し方</dt><dd>decrement の値を見直し、両方に preempt を入れる</dd>
+    </dl>
+  </details>
+</div>
+
+<h3>やってみる：HSRP</h3>
+<p>下の黒い画面をクリックして、R1 のコンソールのつもりでコマンドを打つ。「大きく表示」を押すと、ページの上に大きな画面で開く。</p>
+<div class="cli-lab" data-lab="hsrp"></div>
+
+<!-- ============================================================ -->
+<h2>2. NAT・PAT</h2>
+
+<h3>何のための技術か</h3>
+<p>社内ではプライベートアドレス（192.168.0.0/16 など）を使い、インターネットに出るときだけ<strong>グローバルアドレスに変換</strong>する。グローバルアドレスが少なくても多くの端末が外に出られ、社内のアドレスを外に見せずに済む。</p>
+
+<h3>4つのアドレスの呼び方</h3>
+<figure class="fig">
+  <svg viewBox="0 0 640 190" role="img" aria-label="内側のPC、NATルータ、外側のWebサーバ。Inside localとInside global、Outside localとOutside global">
+    <rect class="po" x="8" y="14" width="300" height="110" rx="12"/><text class="s" x="20" y="32">内側（inside）</text>
+    <rect class="po" x="332" y="14" width="300" height="110" rx="12"/><text class="s" x="344" y="32">外側（outside）</text>
+    <path class="ln" d="M140 70 H250 M390 70 H500"/>
+    <rect class="pc" x="30" y="48" width="110" height="44" rx="8"/><text class="t" x="85" y="75" text-anchor="middle">PC</text>
+    <rect class="sw" x="250" y="44" width="140" height="52" rx="18"/><text class="t" x="320" y="75" text-anchor="middle">NAT ルータ</text>
+    <rect class="pc" x="500" y="48" width="110" height="44" rx="8"/><text class="t" x="555" y="75" text-anchor="middle">Web</text>
+    <rect class="tag" x="20" y="138" width="140" height="40" rx="5"/><text class="s" x="90" y="154" text-anchor="middle">Inside local</text><text class="s" x="90" y="170" text-anchor="middle">192.168.1.10</text>
+    <rect class="tag" x="170" y="138" width="140" height="40" rx="5"/><text class="s" x="240" y="154" text-anchor="middle">Inside global</text><text class="s" x="240" y="170" text-anchor="middle">203.0.113.1</text>
+    <rect class="tag" x="330" y="138" width="140" height="40" rx="5"/><text class="s" x="400" y="154" text-anchor="middle">Outside local</text><text class="s" x="400" y="170" text-anchor="middle">198.51.100.10</text>
+    <rect class="tag" x="480" y="138" width="140" height="40" rx="5"/><text class="s" x="550" y="154" text-anchor="middle">Outside global</text><text class="s" x="550" y="170" text-anchor="middle">198.51.100.10</text>
+  </svg>
+</figure>
+<table>
+  <thead><tr><th>呼び方</th><th>意味</th><th>上の図では</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Inside local</strong></td><td>内側の端末の<strong>本当のアドレス</strong></td><td>192.168.1.10</td></tr>
+    <tr><td><strong>Inside global</strong></td><td>内側の端末が<strong>外から見えるアドレス</strong>（変換後）</td><td>203.0.113.1</td></tr>
+    <tr><td>Outside local</td><td>外側の相手が、内側から見えるアドレス</td><td>198.51.100.10（ふつうは変換しない）</td></tr>
+    <tr><td>Outside global</td><td>外側の相手の本当のアドレス</td><td>198.51.100.10</td></tr>
+  </tbody>
+</table>
+<p><strong>local</strong> は「内側から見たアドレス」、<strong>global</strong> は「外側から見たアドレス」と覚える。</p>
+
+<h3>NAT の種類</h3>
+<table>
+  <thead><tr><th>種類</th><th>変換のしかた</th><th>使いどころ</th></tr></thead>
+  <tbody>
+    <tr><td><strong>静的 NAT</strong></td><td><strong>1 対 1 で固定</strong></td><td>外から接続されるサーバ（外からの通信も通る）</td></tr>
+    <tr><td><strong>動的 NAT</strong></td><td>プールのアドレスを、通信のたびに 1 対 1 で貸し出す</td><td>プールが足りなくなると、それ以上の端末は外に出られない</td></tr>
+    <tr><td><strong>PAT</strong>（overload）</td><td>1つのアドレスを、<strong>ポート番号で多くの端末が共有</strong></td><td>家庭や会社でいちばん使われる形</td></tr>
+  </tbody>
+</table>
+
+<h3>設定例</h3>
+<p>どの形でも、まず<strong>内側と外側のインタフェース</strong>を決める。</p>
+<pre data-cli="config" data-title="R1（共通）">
+interface GigabitEthernet0/0
+ ip nat inside   ! LAN 側が内側
+interface GigabitEthernet0/1
+ ip nat outside   ! ISP 側が外側
+</pre>
+<div class="tabs">
+  <div data-tab="PAT">
+<pre data-cli="config" data-title="R1">
+access-list 1 permit 192.168.1.0 0.0.0.255   ! 変換する相手（社内の LAN）
+ip nat inside source list 1 interface GigabitEthernet0/1 overload   ! Gi0/1 のアドレスを共有
+</pre>
+  </div>
+  <div data-tab="動的 NAT">
+<pre data-cli="config" data-title="R1">
+ip nat pool PUBLIC 203.0.113.2 203.0.113.5 netmask 255.255.255.248   ! 貸し出すアドレスの範囲
+access-list 1 permit 192.168.1.0 0.0.0.255
+ip nat inside source list 1 pool PUBLIC   ! overload を付けると、プールで PAT になる
+</pre>
+  </div>
+  <div data-tab="静的 NAT">
+<pre data-cli="config" data-title="R1">
+ip nat inside source static 192.168.1.20 203.0.113.2   ! サーバを 1 対 1 で固定
+ip nat inside source static tcp 192.168.1.21 80 203.0.113.3 80   ! ポートだけを固定することもできる
+</pre>
+  </div>
+</div>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show ip nat translations">
+R1# show ip nat translations
+<span data-tip="tcp・udp・icmp。--- は静的 NAT の固定の対応">Pro</span> <span data-tip="外から見えるアドレス（変換後）">Inside global</span>         <span data-tip="内側の端末の本当のアドレス">Inside local</span>          Outside local         Outside global
+tcp 203.0.113.1:51000     192.168.1.10:51000    198.51.100.10:443     198.51.100.10:443
+tcp <span data-tip="同じアドレスを、ポート番号で見分けて共有している（PAT）">203.0.113.1:51007</span>     192.168.1.11:51007    198.51.100.10:443     198.51.100.10:443
+<span data-tip="静的 NAT の対応は、通信がなくても表に残る">---</span> 203.0.113.2           192.168.1.20          ---                   ---
+</pre>
+<ul>
+  <li><code>show ip nat statistics</code>：内側・外側のインタフェース、変換の数、使っているプール</li>
+  <li><code>clear ip nat translation *</code>：動的な変換を消す（設定を変えたあとに使う）</li>
+</ul>
+
+<h3>変換されないときの切り分け</h3>
+<div class="steps">
+  <details class="step">
+    <summary>show ip nat translations に何も出ない</summary>
+    <dl>
+      <dt>見る</dt><dd><code>show ip nat statistics</code> の Inside・Outside interfaces、<code>show access-lists</code> の matches</dd>
+      <dt>原因</dt><dd><strong>inside と outside が逆</strong>、または付け忘れ。アクセスリストが端末のアドレスに一致していない</dd>
+      <dt>直し方</dt><dd>LAN 側に inside、ISP 側に outside。アクセスリストのワイルドカードマスクを見直す</dd>
+    </dl>
+  </details>
+  <details class="step">
+    <summary>一部の端末だけ外に出られない</summary>
+    <dl>
+      <dt>見る</dt><dd>動的 NAT のプールの大きさ、<code>show ip nat statistics</code></dd>
+      <dt>原因</dt><dd>動的 NAT で <strong>プールのアドレスを使い切った</strong>（overload がない）</dd>
+      <dt>直し方</dt><dd><code>overload</code> を付けて PAT にする、またはプールを広げる</dd>
+    </dl>
+  </details>
+</div>
+
+<h3>やってみる：NAT・PAT</h3>
+<div class="cli-lab" data-lab="nat"></div>
+
+<!-- ============================================================ -->
+<h2>3. NTP と PTP</h2>
+
+<h3>何のための技術か</h3>
+<p>機器の時刻がずれていると、<strong>ログの時刻</strong>が合わず障害の調査ができない。<strong>証明書の有効期限</strong>の判定や、認証（AAA）にも影響する。<strong>NTP</strong> はネットワーク越しに時刻を合わせるプロトコル（UDP 123 番）。</p>
+
+<h3>stratum：基準の時計から何段目か</h3>
+<figure class="fig">
+  <svg viewBox="0 0 640 120" role="img" aria-label="GPSなどの基準の時計がstratum 0、それに直結したサーバが1、その下が2、3と続く">
+    <rect class="tag" x="10" y="30" width="120" height="48" rx="8"/><text class="t" x="70" y="52" text-anchor="middle">GPS・原子時計</text><text class="s" x="70" y="68" text-anchor="middle">stratum 0</text>
+    <rect class="sw" x="170" y="30" width="120" height="48" rx="10"/><text class="t" x="230" y="52" text-anchor="middle">NTP サーバ</text><text class="s" x="230" y="68" text-anchor="middle">stratum 1</text>
+    <rect class="box" x="330" y="30" width="120" height="48" rx="10"/><text class="t" x="390" y="52" text-anchor="middle">NTP サーバ</text><text class="s" x="390" y="68" text-anchor="middle">stratum 2</text>
+    <rect class="box" x="490" y="30" width="140" height="48" rx="18"/><text class="t" x="560" y="52" text-anchor="middle">ルータ</text><text class="s" x="560" y="68" text-anchor="middle">stratum 3</text>
+    <path class="ln" d="M130 54 H170 M290 54 H330 M450 54 H490"/>
+    <text class="s" x="320" y="106" text-anchor="middle">合わせた相手の1段下になる。stratum 16 は「同期していない」</text>
+  </svg>
+</figure>
+<ul>
+  <li>NTP サーバが複数あると、<strong>stratum が小さく信頼できる方</strong>を基準（sys.peer）に選ぶ</li>
+  <li>本物の機器では、設定してから同期するまでに<strong>数分</strong>かかる</li>
+</ul>
+
+<h3>設定例</h3>
+<pre data-cli="config" data-title="R1">
+ntp server 10.0.0.123   ! このサーバに時刻を合わせる（クライアント）
+ntp server 10.0.0.124   ! 予備のサーバ
+ntp source Loopback0   ! NTP の送信元をループバックにする
+!
+ntp authenticate   ! 認証を使う
+ntp authentication-key 1 md5 CISCO123   ! 鍵を決める
+ntp trusted-key 1   ! この鍵を信頼する
+ntp server 10.0.0.123 key 1   ! サーバとのやり取りに鍵を使う
+</pre>
+<table>
+  <thead><tr><th>コマンド</th><th>役割</th></tr></thead>
+  <tbody>
+    <tr><td><code>ntp server</code></td><td>相手に合わせる（クライアント）</td></tr>
+    <tr><td><code>ntp peer</code></td><td>同じ立場の相手と、互いに合わせる</td></tr>
+    <tr><td><code>ntp master 3</code></td><td>自分の時計を基準として配る（外の基準がないとき）。数字は自分の stratum</td></tr>
+  </tbody>
+</table>
+
+<h3>show で確かめる</h3>
+<pre data-cli="show" data-title="show ntp associations">
+R1# show ntp associations
+
+  address         <span data-tip="相手が合わせている基準。.GPS. は GPS から時刻を得ている">ref clock</span>       <span data-tip="相手の stratum">st</span>   when   poll <span data-tip="直近8回の応答。377（8 進数）なら8回とも届いた">reach</span>  delay  offset   disp
+<span data-tip="* が基準に選んだ相手（sys.peer）、+ は候補">*</span>~10.0.0.123      .GPS.            1     12     64   377  1.012   0.214  0.950
++~10.0.0.124      10.0.0.123       2     12     64   377  1.012   0.214  0.950
+ * sys.peer, # selected, + candidate, - outlyer, x falseticker, ~ configured
+</pre>
+<pre data-cli="show" data-title="show ntp status">
+R1# show ntp status
+Clock is <span data-tip="synchronized なら同期している。unsynchronized は stratum 16">synchronized</span>, stratum <span data-tip="基準（stratum 1）の1段下">2</span>, reference is 10.0.0.123
+</pre>
+
+<h3>PTP（IEEE 1588）</h3>
+<p>NTP の精度はミリ秒程度。<strong>PTP</strong> は、機器のハードウェアで送受信の時刻を記録して、<strong>マイクロ秒より細かい精度</strong>で合わせる。工場の制御、放送、金融の取引など、より正確な時刻が要る場面で使う。</p>
+<table>
+  <thead><tr><th></th><th>NTP</th><th>PTP</th></tr></thead>
+  <tbody>
+    <tr><td>精度</td><td>ミリ秒程度</td><td><strong>マイクロ秒より細かい</strong></td></tr>
+    <tr><td>時刻の記録</td><td>ソフトウェア</td><td><strong>ハードウェア</strong>（タイムスタンプ）</td></tr>
+    <tr><td>基準の選び方</td><td>stratum など</td><td><strong>BMCA</strong> で、いちばんよい時計（<strong>グランドマスター</strong>）を自動で選ぶ</td></tr>
+    <tr><td>途中の機器</td><td>特になし</td><td><strong>バウンダリクロック</strong>（受けて合わせ直す）、<strong>トランスペアレントクロック</strong>（通過にかかった時間を書き足す）</td></tr>
+  </tbody>
+</table>
+
+<h3>やってみる：NTP</h3>
+<div class="cli-lab" data-lab="ntp"></div>
+
+<!-- ============================================================ -->
+<h2>4. マルチキャスト</h2>
+
+<h3>何のための技術か</h3>
+<p>同じデータ（映像の配信など）を多くの受信者に届けるとき、ユニキャストでは受信者の数だけ送ることになる。<strong>マルチキャスト</strong>では、送信者は<strong>1つのグループアドレス宛てに1回だけ</strong>送り、ルータが受信者のいる方向にだけ複製して届ける。</p>
+
+<table>
+  <thead><tr><th>アドレス</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td><strong>224.0.0.0/4</strong></td><td>マルチキャスト全体（224.0.0.0〜239.255.255.255）</td></tr>
+    <tr><td>224.0.0.0/24</td><td>同じリンクの中だけ（ルータを越えない）。OSPF の 224.0.0.5 など</td></tr>
+    <tr><td><strong>232.0.0.0/8</strong></td><td><strong>SSM</strong> 用</td></tr>
+    <tr><td>239.0.0.0/8</td><td>組織の中で自由に使える範囲</td></tr>
+  </tbody>
+</table>
+<p>MAC アドレスは <strong>01:00:5E</strong> に、グループアドレスの下位 23 ビットを付けたもの。</p>
+
+<h3>プロトコルの役割</h3>
+<table>
+  <thead><tr><th>プロトコル</th><th>どこで使うか</th><th>役割</th></tr></thead>
+  <tbody>
+    <tr><td><strong>IGMP</strong></td><td><strong>受信者とルータの間</strong></td><td>受信者が「このグループを受けたい」とルータに伝える。v2 はグループだけを指定、<strong>v3 は送信元も指定できる</strong>（SSM に必要）</td></tr>
+    <tr><td>IGMP スヌーピング</td><td>スイッチ</td><td>IGMP を覗き見て、受信者のいるポートにだけ流す</td></tr>
+    <tr><td><strong>PIM</strong></td><td><strong>ルータ同士</strong></td><td>マルチキャストを届ける道（配信の木）を作る</td></tr>
+    <tr><td><strong>MSDP</strong></td><td>RP 同士</td><td>別の PIM のドメインの RP どうしで、「どこに送信者がいるか」を伝え合う</td></tr>
+  </tbody>
+</table>
+
+<h3>PIM の種類</h3>
+<table>
+  <thead><tr><th>種類</th><th>しくみ</th><th>向いている場面</th></tr></thead>
+  <tbody>
+    <tr><td><strong>PIM-SM</strong>（スパースモード）</td><td>受信者がいる方向から <strong>RP</strong>（待ち合わせ場所のルータ）へ参加を伝え、まず RP を通る<strong>共有の木（*,G）</strong>で届ける。流れ始めたら、送信者への<strong>最短の木（S,G）</strong>に切り替える</td><td>いちばん使われる</td></tr>
+    <tr><td>PIM-DM（デンスモード）</td><td>まず全体に流し、受信者がいない方向から<strong>止めてもらう</strong>（flood and prune）</td><td>受信者がどこにでもいる小さな環境</td></tr>
+    <tr><td><strong>SSM</strong></td><td>受信者が IGMPv3 で<strong>送信者を指定</strong>するので、<strong>RP が要らない</strong>。最初から（S,G）の木</td><td>送信者が決まっている配信</td></tr>
+    <tr><td><strong>Bidir-PIM</strong></td><td>共有の木を<strong>双方向</strong>に使い、最短の木に切り替えない</td><td>送信者も受信者も多い（多対多）</td></tr>
+  </tbody>
+</table>
+
+<div class="callout important">
+  <p><strong>RPF チェック</strong>：ルータは、マルチキャストを受けたとき、<strong>送信者（または RP）へのユニキャストの経路が出ていくインタフェース</strong>から来たものだけを受け入れ、ほかから来たものは捨てる。これでループを防ぐ。マルチキャストが届かないときは、ユニキャストの経路も確かめる。</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>確認問題</h2>
+<p>カードを押すと答えが出る。</p>
+<div class="flashcards">
+  <div class="fc"><div class="fc-q">HSRP で R1 の優先度を 110 にしたのに、R2（100）が Active のまま。なぜか</div><div class="fc-a">HSRP は <strong>preempt が既定で無効</strong>だから。R1 に <code>standby 1 preempt</code> を入れる。</div></div>
+  <div class="fc"><div class="fc-q">HSRP と VRRP で、preempt の既定はそれぞれどうか</div><div class="fc-a"><strong>HSRP は無効、VRRP は有効</strong>。</div></div>
+  <div class="fc"><div class="fc-q">HSRP で優先度が同じとき、Active になるのはどちらか</div><div class="fc-a"><strong>インタフェースの IP アドレスが大きい方</strong>。</div></div>
+  <div class="fc"><div class="fc-q">HSRP v1 のグループ 1 の仮想 MAC アドレスは</div><div class="fc-a"><strong>0000.0c07.ac01</strong>（v2 なら 0000.0c9f.f001）。</div></div>
+  <div class="fc"><div class="fc-q">仮想 IP をルータ自身のインタフェースのアドレスと同じにできるのはどれか</div><div class="fc-a"><strong>VRRP</strong>。そのルータは優先度 255（アドレスの持ち主）になる。</div></div>
+  <div class="fc"><div class="fc-q">トラッキングで R1 の優先度が下がったのに、R2 が Active にならない。何を疑うか</div><div class="fc-a"><strong>R2 に preempt がない</strong>こと。下げた後の優先度が R2 より小さいかも確かめる。</div></div>
+  <div class="fc"><div class="fc-q">NAT の Inside local と Inside global の違いは</div><div class="fc-a"><strong>Inside local</strong> は内側の端末の本当のアドレス、<strong>Inside global</strong> は外から見えるアドレス（変換後）。</div></div>
+  <div class="fc"><div class="fc-q">1つのグローバルアドレスを多くの端末で共有する NAT の設定で、必ず付けるキーワードは</div><div class="fc-a"><strong>overload</strong>（PAT）。</div></div>
+  <div class="fc"><div class="fc-q">NAT を設定したのに show ip nat translations に何も出ない。まず何を確かめるか</div><div class="fc-a">インタフェースの <strong>ip nat inside と ip nat outside が逆になっていないか</strong>、アクセスリストが端末に一致しているか。</div></div>
+  <div class="fc"><div class="fc-q">外から接続されるサーバに使う NAT の種類は</div><div class="fc-a"><strong>静的 NAT</strong>（1 対 1 で固定するので、外からの通信も通る）。</div></div>
+  <div class="fc"><div class="fc-q">stratum 1 のサーバに合わせたルータの stratum は。stratum 16 は何を表すか</div><div class="fc-a"><strong>2</strong>（1段下）。stratum 16 は<strong>同期していない</strong>。</div></div>
+  <div class="fc"><div class="fc-q">PTP が NTP より正確なのはなぜか</div><div class="fc-a">送受信の時刻を<strong>ハードウェアで記録</strong>し、途中の機器でかかった時間も補正するから（マイクロ秒より細かい精度）。</div></div>
+  <div class="fc"><div class="fc-q">SSM で RP が要らないのはなぜか。受信者に必要なものは</div><div class="fc-a">受信者が<strong>送信者を指定</strong>するので、待ち合わせ場所（RP）が要らない。受信者側には <strong>IGMPv3</strong> が必要。</div></div>
+  <div class="fc"><div class="fc-q">RPF チェックとは何か</div><div class="fc-a">マルチキャストを、<strong>送信者へのユニキャストの経路が出ていくインタフェース</strong>から来たときだけ受け入れるしくみ。ループを防ぐ。</div></div>
+</div>
