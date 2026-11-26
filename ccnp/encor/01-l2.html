@@ -493,6 +493,12 @@ Gi1/0/1          Desg FWD 4         128.1    P2p Edge
 <h3>やってみる：ルートブリッジ</h3>
 <div class="cli-lab" data-lab="stp"></div>
 
+<h3>やってみる：ルートポートをコストで変える</h3>
+<div class="callout note">
+  <p>ポートの優先度（<code>spanning-tree port-priority</code>）は、ルートポートの決まり方の③「<strong>相手の</strong>ポート ID」で使われる。自分のポートの優先度を変えると、<strong>隣のスイッチ</strong>のルートポートの選び方が変わり、自分のルートポートは変わらない。自分のルートポートを変えたいときは<strong>コスト</strong>を変える。</p>
+</div>
+<div class="cli-lab" data-lab="stp-cost"></div>
+
 <!-- ============================================================ -->
 <h2>4. STP の保護機能</h2>
 
@@ -528,6 +534,12 @@ errdisable recovery cause bpduguard   ! err-disabled から自動で戻す（任
 <div class="callout tip">
   <p><strong>err-disabled</strong> になったポートは <code>show interfaces status err-disabled</code> で探し、原因を取り除いてから <code>shutdown</code> → <code>no shutdown</code> で戻す。</p>
 </div>
+
+<h3>やってみる：PortFast と BPDU ガード</h3>
+<div class="cli-lab" data-lab="bpduguard"></div>
+
+<h3>やってみる：ルートガード</h3>
+<div class="cli-lab" data-lab="rootguard"></div>
 
 <!-- ============================================================ -->
 <h2>確認問題</h2>

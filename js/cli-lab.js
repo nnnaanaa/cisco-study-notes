@@ -123,6 +123,8 @@
     oprio: { help: "<0-255>", desc: "優先度（0 は DR・BDR にならない）", parse: (t) => numIn(t, 0, 255) },
     secs: { help: "<1-65535>", desc: "秒", parse: (t) => numIn(t, 1, 65535) },
     refbw: { help: "<1-4294967>", desc: "基準の帯域幅（Mbps）", parse: (t) => numIn(t, 1, 4294967) },
+    stpcost: { help: "<1-200000000>", desc: "ポートのコスト（GigabitEthernet の既定は 4）", parse: (t) => numIn(t, 1, 200000000) },
+    pprio: { help: "<0-240>", desc: "ポートの優先度（16 の倍数。既定 128）", parse: (t) => numIn(t, 0, 240) },
     acl: { help: "<1-99>", desc: "標準アクセスリストの番号", parse: (t) => numIn(t, 1, 99) },
     hgrp: { help: "<0-255>", desc: "HSRP のグループ番号", parse: (t) => numIn(t, 0, 255) },
     hprio: { help: "<0-255>", desc: "優先度（既定 100、大きい方が Active）", parse: (t) => numIn(t, 0, 255) },
@@ -152,6 +154,8 @@
     "reference-bandwidth": "コストの基準の帯域幅", cost: "コスト", "hello-interval": "hello の間隔", "dead-interval": "ダウンと判断するまでの時間",
     "point-to-point": "1対1（DR・BDR を選ばない）", broadcast: "ブロードキャスト（DR・BDR を選ぶ）", "remote-as": "相手の AS 番号", mask: "サブネットマスク",
     clear: "リセットする", process: "プロセス", ping: "疎通を確かめる", connected: "直結の経路",
+    "port-priority": "ポートの優先度（隣のスイッチのルートポートの選び方に効く）", guard: "ガード（ルートガードなど）", errdisable: "err-disabled の設定",
+    recovery: "err-disabled から自動で戻す", cause: "原因", "err-disabled": "err-disabled のポートだけ", inconsistentports: "不整合で止めているポート",
     standby: "HSRP", preempt: "優先度が高ければ Active を奪う", version: "バージョン", nat: "NAT", inside: "内側（LAN 側）", outside: "外側（インターネット側）",
     source: "送信元のアドレスを変換", list: "アクセスリストで変換する相手を選ぶ", pool: "変換に使うアドレスの範囲", overload: "ポート番号で多重化する（PAT）",
     static: "1対1で固定して変換", netmask: "マスク", "access-list": "アクセスリスト", "access-lists": "アクセスリストの一覧", permit: "許可", deny: "拒否",
@@ -166,7 +170,7 @@
     if (!m) return [spec];
     return m[1].split("|").flatMap((alt) => expand(spec.replace(m[0], alt)));
   }
-  const SW_ONLY = /^(no )?(switchport|channel-group|spanning-tree|vlan|name)\b|^show (interfaces trunk|interfaces <if> switchport|vlan|etherchannel|spanning-tree)/;
+  const SW_ONLY = /^(no )?(switchport|channel-group|spanning-tree|vlan|name|errdisable)\b|^show (interfaces trunk|interfaces status|interfaces <if> switchport|vlan|etherchannel|spanning-tree)/;
   function compile(defs, dev) {
     const out = {};
     defs.forEach(([modes, spec, run, only]) => {
@@ -241,7 +245,8 @@
 
   // ---------------------------------------------------------------- スイッチの状態
   function newIf() {
-    return { mode: null, access: 1, native: 1, allowed: null, nonego: false, encap: null, group: null, gmode: null, shut: false, desc: "", portfast: false, bpduguard: false,
+    return { mode: null, access: 1, native: 1, allowed: null, nonego: false, encap: null, group: null, gmode: null, shut: false, desc: "", portfast: false, bpduguard: null,
+      stpCost: null, stpVlanCost: {}, stpPrio: null, stpVlanPrio: {}, guard: null, errdis: null,
       ip: null, ospfPid: null, ospfArea: null, ospfCost: null, ospfPrio: null, ospfNet: null, hello: null, dead: null,
       standby: {}, hsrpVersion: null, nat: null };
   }
@@ -288,7 +293,7 @@
   function linkUp(st, k) {
     if (k.startsWith("Lo")) return !!st.ifs[k] && !st.ifs[k].shut;
     if (k.startsWith("Po")) return membersOf(st, k).some((m) => memberFlag(st, m) === "P");
-    return !!st.links[k] && !st.ifs[k].shut;
+    return !!st.links[k] && !st.ifs[k].shut && !st.ifs[k].errdis;
   }
   function membersOf(st, po) {
     const g = +po.slice(2);
@@ -346,9 +351,22 @@
   function cmpBid(a, b) {
     return a.p - b.p || (a.mac < b.mac ? -1 : a.mac > b.mac ? 1 : 0);
   }
+  // ポートのコスト（VLAN ごとの設定 → インタフェースの設定 → 既定）と優先度
+  const portCost = (ifc, k, v) => (ifc.stpVlanCost && ifc.stpVlanCost[v]) || ifc.stpCost || (k.startsWith("Po") ? 3 : 4);
+  const portPrio = (ifc, v) => (ifc.stpVlanPrio && ifc.stpVlanPrio[v] != null ? ifc.stpVlanPrio[v] : ifc.stpPrio != null ? ifc.stpPrio : 128);
+  const portfastOn = (st, k) => { const c = st.ifs[k]; return !!c.portfast || (!!st.stp.portfastDefault && adminMode(c) === "access"); };
+  const isEdge = (st, k) => portfastOn(st, k) && !opTrunk(st, k);
+  const bpduguardOn = (st, k) => { const c = st.ifs[k]; return c.bpduguard === true || (c.bpduguard == null && !!st.stp.bpduguardDefault && portfastOn(st, k)); };
+  // 隣のスイッチが「ルートまでこのコストで行ける」と知らせてくる値
+  function advCost(st, nb, root) {
+    if (nb.name === root.name) return 0;
+    const b = st.bridges[nb.name] || {};
+    return b.costTo && b.costTo[root.name] != null ? b.costTo[root.name] : 4;
+  }
   function stpVlan(st, v) {
-    const ext = st.stp.mode === "mst" ? 0 : v;
-    const me = { name: st.host, p: (st.stp.mode === "mst" ? 32768 : myPrio(st, v)) + ext, base: st.stp.mode === "mst" ? 32768 : myPrio(st, v), mac: st.mac };
+    const mst = st.stp.mode === "mst", ext = mst ? 0 : v;
+    const base = mst ? 32768 : myPrio(st, v);
+    const me = { name: st.host, p: base + ext, base, mac: st.mac };
     const ports = [];
     logicalPorts(st).forEach((k) => {
       if (!linkUp(st, k)) return;
@@ -357,26 +375,37 @@
       const carries = trunk ? allowedHas(ifc, v) && st.vlans.has(v) : (ifc.access || 1) === v;
       if (!carries) return;
       let nb = null;
-      if (trunk && link.peer && st.bridges[link.peer]) {
-        const b = st.bridges[link.peer];
-        const base = st.stp.mode === "mst" ? 32768 : peerPrio(st, link.peer, v);
-        nb = { name: link.peer, p: base + ext, base, mac: b.mac };
+      if (link.peer && st.bridges[link.peer]) {
+        const nbase = mst ? 32768 : peerPrio(st, link.peer, v);
+        nb = { name: link.peer, p: nbase + ext, base: nbase, mac: st.bridges[link.peer].mac };
       }
-      ports.push({ k, nb, cost: k.startsWith("Po") ? 3 : 4, edge: !trunk && ifc.portfast });
+      ports.push({ k, nb, cost: portCost(ifc, k, v), prio: portPrio(ifc, v), edge: isEdge(st, k), guard: ifc.guard === "root" });
     });
     if (!ports.length) return null;
+    // ルートの候補（ルートガードのポートの先からは受け付けない）
     let root = me;
-    ports.forEach((p) => { if (p.nb && cmpBid(p.nb, root) < 0) root = p.nb; });
+    ports.forEach((p) => { if (p.nb && !p.guard && cmpBid(p.nb, root) < 0) root = p.nb; });
     const isRoot = root === me;
+    // ルートポート: ルートまでのコストの合計 → 隣の BID → ポート番号の順に小さい方
     let rootPort = null;
-    if (!isRoot) rootPort = ports.find((p) => p.nb && p.nb.name === root.name);
+    if (!isRoot) {
+      ports.filter((p) => p.nb && !p.guard).forEach((p) => {
+        p.total = p.cost + advCost(st, p.nb, root);
+        const better = !rootPort || p.total < rootPort.total ||
+          (p.total === rootPort.total && (cmpBid(p.nb, rootPort.nb) < 0 || (cmpBid(p.nb, rootPort.nb) === 0 && ifNum(p.k) < ifNum(rootPort.k))));
+        if (better) rootPort = p;
+      });
+    }
+    const rootCost = rootPort ? rootPort.total : 0;
     ports.forEach((p) => {
-      if (isRoot || !p.nb) { p.role = "Desg"; p.sts = "FWD"; }
-      else if (p === rootPort) { p.role = "Root"; p.sts = "FWD"; }
-      else if (cmpBid(me, p.nb) < 0) { p.role = "Desg"; p.sts = "FWD"; }
+      if (p.guard && p.nb && cmpBid(p.nb, root) < 0) { p.role = "Desg"; p.sts = "BKN*"; p.inc = "ROOT_Inc"; return; }
+      if (isRoot || !p.nb) { p.role = "Desg"; p.sts = "FWD"; return; }
+      if (p === rootPort) { p.role = "Root"; p.sts = "FWD"; return; }
+      const his = advCost(st, p.nb, root);
+      if (rootCost < his || (rootCost === his && cmpBid(me, p.nb) < 0)) { p.role = "Desg"; p.sts = "FWD"; }
       else { p.role = "Altn"; p.sts = "BLK"; }
     });
-    return { me, root, isRoot, rootPort, ports, ext };
+    return { me, root, isRoot, rootPort, rootCost, ports, ext };
   }
   function rootPrimary(st, v, secondary) {
     if (secondary) return 28672;
@@ -503,11 +532,11 @@
     const out = [st.stp.mode === "mst" ? "MST0" : "VLAN" + String(v).padStart(4, "0"), "  Spanning tree enabled protocol " + proto];
     out.push("  Root ID    Priority    " + s.root.p, "             Address     " + s.root.mac);
     if (s.isRoot) out.push("             This bridge is the root");
-    else out.push("             Cost        " + s.rootPort.cost, "             Port        " + ifNum(s.rootPort.k) + " (" + longIf(s.rootPort.k) + ")");
+    else out.push("             Cost        " + s.rootCost, "             Port        " + ifNum(s.rootPort.k) + " (" + longIf(s.rootPort.k) + ")");
     out.push(timers, "");
     out.push("  Bridge ID  Priority    " + s.me.p + "  (priority " + s.me.base + " sys-id-ext " + s.ext + ")", "             Address     " + s.me.mac, timers, "             Aging Time  300 sec", "");
     out.push("Interface           Role Sts Cost      Prio.Nbr Type", "------------------- ---- --- --------- -------- --------------------------------");
-    s.ports.forEach((p) => out.push(pad(p.k, 20) + p.role + " " + p.sts + " " + pad(p.cost, 10) + pad("128." + (p.k.startsWith("Po") ? 64 + ifNum(p.k) : ifNum(p.k)), 9) + "P2p" + (p.edge ? " Edge" : "")));
+    s.ports.forEach((p) => out.push(pad(p.k, 20) + p.role + " " + pad(p.sts, 4) + pad(p.cost, 10) + pad(p.prio + "." + (p.k.startsWith("Po") ? 64 + ifNum(p.k) : ifNum(p.k)), 9) + "P2p" + (p.edge ? " Edge" : "") + (p.inc ? " *" + p.inc : "")));
     return out;
   }
   function showStp(st, v) {
@@ -524,6 +553,48 @@
     return out.length ? out : ["No spanning tree instance exists."];
   }
 
+  const ifSortStatus = ifCmp(["Gi", "Po"]);
+  function showIfStatus(st, onlyErr) {
+    const ks = Object.keys(st.ifs).filter((k) => !k.startsWith("Lo")).sort(ifSortStatus);
+    if (onlyErr) {
+      const out = ["", "Port         Name               Status       Reason               Err-disabled Vlans"];
+      ks.filter((k) => st.ifs[k].errdis).forEach((k) => out.push(pad(k, 32) + pad("err-disabled", 13) + st.ifs[k].errdis));
+      return out;
+    }
+    const out = ["", "Port         Name               Status       Vlan       Duplex  Speed Type"];
+    ks.forEach((k) => {
+      const c = st.ifs[k], up = linkUp(st, k);
+      const status = c.errdis ? "err-disabled" : c.shut ? "disabled" : up ? "connected" : "notconnect";
+      const vlan = opTrunk(st, k) ? "trunk" : String(c.access || 1);
+      out.push(pad(k, 13) + pad(c.desc.slice(0, 18), 19) + pad(status, 13) + pad(vlan, 11) + (up ? "a-full a-1000 " : "  auto   auto ") + (k.startsWith("Po") ? "" : "10/100/1000BaseTX"));
+    });
+    return out;
+  }
+  function showStpSummary(st) {
+    const roots = [...st.vlans.keys()].sort((a, b) => a - b).filter((v) => { const x = stpVlan(st, v); return x && x.isRoot; });
+    const onoff = (b) => (b ? "is enabled" : "is disabled");
+    return [
+      "Switch is in " + st.stp.mode + " mode",
+      "Root bridge for: " + (roots.length ? roots.map((v) => "VLAN" + String(v).padStart(4, "0")).join(", ") : "none"),
+      "Extended system ID                      is enabled",
+      "Portfast Default                        " + onoff(st.stp.portfastDefault),
+      "Portfast Edge BPDU Guard Default        " + onoff(st.stp.bpduguardDefault),
+      "Portfast Edge BPDU Filter Default       is disabled",
+      "Loopguard Default                       is disabled",
+    ];
+  }
+  function showStpInconsistent(st) {
+    const out = ["Name                 Interface                Inconsistency", "-------------------- ------------------------ ------------------"];
+    let n = 0;
+    [...st.vlans.keys()].sort((a, b) => a - b).forEach((v) => {
+      const x = stpVlan(st, v);
+      if (!x) return;
+      x.ports.filter((p) => p.inc).forEach((p) => { n++; out.push(pad("VLAN" + String(v).padStart(4, "0"), 21) + pad(longIf(p.k), 25) + "Root Inconsistent"); });
+    });
+    out.push("", "Number of inconsistent ports (segments) in the system : " + n);
+    return out;
+  }
+
   function ifConfigLines(st, k) {
     const c = st.ifs[k], out = ["interface " + longIf(k)];
     if (c.desc) out.push(" description " + c.desc);
@@ -535,7 +606,13 @@
     if (c.nonego) out.push(" switchport nonegotiate");
     if (c.shut) out.push(" shutdown");
     if (c.portfast) out.push(" spanning-tree portfast");
-    if (c.bpduguard) out.push(" spanning-tree bpduguard enable");
+    if (c.bpduguard === true) out.push(" spanning-tree bpduguard enable");
+    if (c.bpduguard === false) out.push(" spanning-tree bpduguard disable");
+    if (c.guard === "root") out.push(" spanning-tree guard root");
+    if (c.stpCost) out.push(" spanning-tree cost " + c.stpCost);
+    Object.keys(c.stpVlanCost || {}).forEach((v) => out.push(" spanning-tree vlan " + v + " cost " + c.stpVlanCost[v]));
+    if (c.stpPrio != null) out.push(" spanning-tree port-priority " + c.stpPrio);
+    Object.keys(c.stpVlanPrio || {}).forEach((v) => out.push(" spanning-tree vlan " + v + " port-priority " + c.stpVlanPrio[v]));
     if (c.group) out.push(" channel-group " + c.group + " mode " + c.gmode);
     return out;
   }
@@ -544,7 +621,11 @@
     return ["Building configuration...", "", "Current configuration : " + (text.length + 1) + " bytes"].concat(body);
   }
   function showRun(st) {
-    const body = ["!", "version 17.9", "hostname " + st.host, "!", "vtp mode transparent", "!", "spanning-tree mode " + st.stp.mode, "spanning-tree extend system-id"];
+    const body = ["!", "version 17.9", "hostname " + st.host, "!", "vtp mode transparent", "!", "spanning-tree mode " + st.stp.mode];
+    if (st.stp.portfastDefault) body.push("spanning-tree portfast default");
+    if (st.stp.bpduguardDefault) body.push("spanning-tree portfast bpduguard default");
+    body.push("spanning-tree extend system-id");
+    if (st.errRecovery) body.push("errdisable recovery cause bpduguard");
     Object.keys(st.stp.prio).map(Number).sort((a, b) => a - b).forEach((v) => body.push("spanning-tree vlan " + v + " priority " + st.stp.prio[v]));
     body.push("!");
     [...st.vlans.keys()].filter((v) => v !== 1).sort((a, b) => a - b).forEach((v) => {
@@ -1534,15 +1615,49 @@
     ["if", "no switchport nonegotiate", l2((ifc) => (ifc.nonego = false))],
     ["if", "channel-group <grp> mode (active|passive|on|desirable|auto)", (c) => channelGroup(c)],
     ["if", "no channel-group", (c) => c.st.ctx.forEach((k) => { const i = c.st.ifs[k]; i.group = null; i.gmode = null; })],
-    ["if", "shutdown", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].shut = true))],
+    ["if", "shutdown", (c) => c.st.ctx.forEach((k) => { c.st.ifs[k].shut = true; c.st.ifs[k].errdis = null; })], // shutdown → no shutdown で err-disabled から戻る
     ["if", "no shutdown", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].shut = false))],
     ["if", "description <line>", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].desc = c.args[0]))],
     ["if", "no description", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].desc = ""))],
-    ["if", "spanning-tree portfast", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].portfast = true))],
+    ["if", "spanning-tree portfast", (c) => {
+      c.out(["%Warning: portfast should only be enabled on ports connected to a single", " host. Connecting hubs, concentrators, switches, bridges, etc... to this", " interface  when portfast is enabled, can cause temporary bridging loops.", " Use with CAUTION", ""]);
+      c.st.ctx.forEach((k) => {
+        c.st.ifs[k].portfast = true;
+        if (adminMode(c.st.ifs[k]) !== "access") c.out(["%Portfast has been configured on " + longIf(k) + " but will only", " have effect when the interface is in a non-trunking mode."]);
+      });
+    }],
     ["if", "no spanning-tree portfast", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].portfast = false))],
     ["if", "spanning-tree bpduguard enable", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].bpduguard = true))],
-    ["if", "no spanning-tree bpduguard", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].bpduguard = false))],
+    ["if", "no spanning-tree bpduguard", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].bpduguard = null))],
+    ["if", "spanning-tree bpduguard disable", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].bpduguard = false))],
+    ["if", "spanning-tree guard root", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].guard = "root"))],
+    ["if", "spanning-tree guard none", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].guard = null))],
+    ["if", "no spanning-tree guard", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].guard = null))],
+    ["if", "spanning-tree cost <stpcost>", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].stpCost = c.args[0]))],
+    ["if", "no spanning-tree cost", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].stpCost = null))],
+    ["if", "spanning-tree vlan <vlans> cost <stpcost>", (c) => c.st.ctx.forEach((k) => c.args[0].forEach((v) => (c.st.ifs[k].stpVlanCost[v] = c.args[1])))],
+    ["if", "no spanning-tree vlan <vlans> cost", (c) => c.st.ctx.forEach((k) => c.args[0].forEach((v) => delete c.st.ifs[k].stpVlanCost[v]))],
+    ["if", "spanning-tree port-priority <pprio>", (c) => { if (portPrioBad(c, c.args[0])) return; c.st.ctx.forEach((k) => (c.st.ifs[k].stpPrio = c.args[0])); }],
+    ["if", "no spanning-tree port-priority", (c) => c.st.ctx.forEach((k) => (c.st.ifs[k].stpPrio = null))],
+    ["if", "spanning-tree vlan <vlans> port-priority <pprio>", (c) => { if (portPrioBad(c, c.args[1])) return; c.st.ctx.forEach((k) => c.args[0].forEach((v) => (c.st.ifs[k].stpVlanPrio[v] = c.args[1]))); }],
+    ["if", "no spanning-tree vlan <vlans> port-priority", (c) => c.st.ctx.forEach((k) => c.args[0].forEach((v) => delete c.st.ifs[k].stpVlanPrio[v]))],
+    ["config", "spanning-tree portfast default", (c) => { c.st.stp.portfastDefault = true; c.out(["%Warning: this command enables portfast by default on all interfaces. You", " should now disable portfast explicitly on switched ports leading to hubs,", " switches and bridges as they may create temporary bridging loops."]); }],
+    ["config", "no spanning-tree portfast default", (c) => (c.st.stp.portfastDefault = false)],
+    ["config", "spanning-tree portfast bpduguard default", (c) => (c.st.stp.bpduguardDefault = true)],
+    ["config", "no spanning-tree portfast bpduguard default", (c) => (c.st.stp.bpduguardDefault = false)],
+    ["config", "errdisable recovery cause bpduguard", (c) => (c.st.errRecovery = true)],
+    ["config", "no errdisable recovery cause bpduguard", (c) => (c.st.errRecovery = false)],
+    ["user priv", "show interfaces status", (c) => c.out(showIfStatus(c.st))],
+    ["user priv", "show interfaces status err-disabled", (c) => c.out(showIfStatus(c.st, true))],
+    ["user priv", "show spanning-tree summary", (c) => c.out(showStpSummary(c.st))],
+    ["user priv", "show spanning-tree inconsistentports", (c) => c.out(showStpInconsistent(c.st))],
   ]);
+
+  function portPrioBad(c, n) {
+    if (n % 16 === 0) return false;
+    c.out(["% Port Priority in increments of 16 is required", "% Allowed values are:", "  0   16  32  48  64  80  96  112 128 144 160 176 192 208 224 240"]);
+    return true;
+  }
 
   function endConfig(c) {
     c.st.mode = "priv";
@@ -1580,6 +1695,25 @@
   // ---------------------------------------------------------------- 機器の動きから出るログ
   function afterCommand(st, log) {
     if (st.dev === "rt") { routerLogs(st, log); return; }
+    // BPDU ガード: 先にスイッチ（BPDU を出す機器）がいるポートは err-disabled にする
+    Object.keys(st.links).sort(ifSort).forEach((k) => {
+      const c = st.ifs[k], link = st.links[k];
+      if (!c || c.shut || c.errdis || !link.peer || !st.bridges[link.peer] || !bpduguardOn(st, k)) return;
+      log("%SPANTREE-2-BLOCK_BPDUGUARD: Received BPDU on port " + longIf(k) + " with BPDU Guard enabled. Disabling port.");
+      log("%PM-4-ERR_DISABLE: bpduguard error detected on " + k + ", putting " + k + " in err-disable state");
+      c.errdis = "bpduguard";
+    });
+    // ルートガード: より強い BPDU を受けたポートを止めたとき・戻したとき
+    [...st.vlans.keys()].forEach((v) => {
+      const x = stpVlan(st, v);
+      const tag = "VLAN" + String(v).padStart(4, "0");
+      Object.keys(st.ifs).forEach((k) => {
+        const key = "rg:" + k + ":" + v;
+        const inc = !!x && x.ports.some((p) => p.k === k && p.inc);
+        if (inc && !st.warned.has(key)) { log("%SPANTREE-2-ROOTGUARD_BLOCK: Root guard blocking port " + longIf(k) + " on " + tag + "."); st.warned.add(key); }
+        if (!inc && st.warned.has(key)) { log("%SPANTREE-2-ROOTGUARD_UNBLOCK: Root guard unblocking port " + longIf(k) + " on " + tag + "."); st.warned.delete(key); }
+      });
+    });
     logicalPorts(st).forEach((k) => {
       const link = peerLink(st, k);
       if (!link || link.native == null) return;
@@ -1719,6 +1853,138 @@
         "spanning-tree vlan 20 root secondary   ! 優先度 28672（予備のルート）",
         "end",
         "show spanning-tree vlan 10   ! This bridge is the root を確かめる",
+      ],
+    },
+
+    "stp-cost": {
+      title: "ルートポートをコストで変える",
+      figure: '<svg viewBox="0 0 640 240" role="img" aria-label="SW1・SW2・SW3の三角形。どのリンクもコスト4。SW2がルート"><path class="ln" d="M200 57 H440"/><path class="ln" d="M200 86 L250 150"/><path class="ln" d="M440 86 L390 150"/><text class="s" x="320" y="50" text-anchor="middle">コスト 4</text><text class="s" x="196" y="122" text-anchor="end">コスト 4</text><text class="s" x="444" y="122">コスト 4</text><rect class="tag" x="30" y="4" width="170" height="20" rx="5"/><text class="s" x="115" y="18" text-anchor="middle">ルート（VLAN 10・20）</text><rect class="box" x="30" y="28" width="170" height="58" rx="10"/><text class="t" x="115" y="52" text-anchor="middle">SW2</text><text class="s" x="115" y="72" text-anchor="middle">MAC 00a1.0000.0100</text><rect class="box" x="440" y="28" width="170" height="58" rx="10"/><text class="t" x="525" y="52" text-anchor="middle">SW3</text><text class="s" x="525" y="72" text-anchor="middle">MAC 00a1.0000.0200</text><rect class="sw" x="235" y="150" width="170" height="58" rx="10"/><text class="t" x="320" y="174" text-anchor="middle">SW1</text><text class="s" x="320" y="194" text-anchor="middle">MAC 00a1.0000.0300</text><text class="s" x="236" y="146" text-anchor="end">Gi1/0/23</text><text class="s" x="404" y="146">Gi1/0/24</text><text class="s" x="320" y="230" text-anchor="middle">ここを設定する</text></svg>',
+      lead: "VLAN 10 だけ、SW1 のルートポートを SW3 経由（Gi1/0/24）に変える。ルートブリッジは SW2 のまま。",
+      facts: [["つなぎ", "SW1 の Gi1/0/23 → SW2、Gi1/0/24 → SW3。SW2 と SW3 もつながっている"], ["ルート", "VLAN 10・20 とも SW2（優先度は3台とも 32768、MAC がいちばん小さい）"], ["コスト", "どのリンクも 4（GigabitEthernet の既定）"], ["STP", "Rapid PVST+（設定済み）"]],
+      goals: [
+        "show spanning-tree vlan 10 で、いまのルートポートとルートまでのコストを確かめる",
+        "VLAN 10 だけ、ルートポートを Gi1/0/24 にする（Gi1/0/23 のコストを上げる）",
+        "VLAN 20 のルートポートは Gi1/0/23 のまま",
+        "ルートブリッジ（優先度）は変えない",
+      ],
+      mac: "00a1.0000.0300",
+      links: {
+        "Gi1/0/23": { peer: "SW2", peerIf: "Gi1/0/23", mode: "trunk" },
+        "Gi1/0/24": { peer: "SW3", peerIf: "Gi1/0/23", mode: "trunk" },
+      },
+      bridges: { SW2: { mac: "00a1.0000.0100" }, SW3: { mac: "00a1.0000.0200", costTo: { SW2: 4 } } },
+      setup(st) {
+        st.vlans.set(10, "SALES");
+        st.vlans.set(20, "DEV");
+        st.ifs["Gi1/0/23"].mode = "trunk";
+        st.ifs["Gi1/0/24"].mode = "trunk";
+        st.stp.mode = "rapid-pvst";
+      },
+      checks: [
+        ["VLAN 10 のルートポートが Gi1/0/24", (st) => { const x = stpVlan(st, 10); return !!x && !!x.rootPort && x.rootPort.k === "Gi1/0/24"; }],
+        ["VLAN 20 のルートポートは Gi1/0/23 のまま", (st) => { const x = stpVlan(st, 20); return !!x && !!x.rootPort && x.rootPort.k === "Gi1/0/23"; }],
+        ["ルートブリッジは SW2 のまま（優先度を変えていない）", (st) => [10, 20].every((v) => { const x = stpVlan(st, v); return !!x && x.root.name === "SW2"; }) && st.stp.prio[10] == null && st.stp.prio[20] == null],
+      ],
+      hint:
+        "<p>ルートポートは「ルートまでのコストの合計」がいちばん小さいポート。いまは Gi1/0/23 が 4、Gi1/0/24 が 4＋4＝8。<br>Gi1/0/23 で <code>spanning-tree vlan 10 cost 20</code> のように VLAN を指定すると、その VLAN だけコストが変わる（<code>spanning-tree cost</code> だと全部の VLAN が変わる）。<br><code>port-priority</code> を変えても、自分のルートポートは変わらない（隣のスイッチの選び方に効く）。</p>",
+      answer: [
+        "enable",
+        "show spanning-tree vlan 10   ! Root の Cost 4、Port 23",
+        "configure terminal",
+        "interface Gi1/0/23",
+        " spanning-tree vlan 10 cost 20   ! VLAN 10 だけコストを 20 に（4＋4＝8 より大きく）",
+        " end",
+        "show spanning-tree vlan 10   ! Cost 8、Port 24。Gi1/0/23 は Altn",
+        "show spanning-tree vlan 20   ! VLAN 20 は Gi1/0/23 のまま",
+      ],
+    },
+
+    bpduguard: {
+      title: "PortFast と BPDU ガード",
+      figure: '<svg viewBox="0 0 640 170" role="img" aria-label="SW1のGi1/0/1にPC、Gi1/0/2に勝手につながれたスイッチ"><path class="ln" d="M220 70 L400 40 M220 100 L400 128"/><rect class="sw" x="50" y="56" width="170" height="58" rx="10"/><text class="t" x="135" y="90" text-anchor="middle">SW1</text><rect class="pc" x="400" y="20" width="150" height="40" rx="8"/><text class="t" x="475" y="45" text-anchor="middle">PC</text><rect class="box" x="400" y="108" width="150" height="40" rx="10"/><text class="t" x="475" y="133" text-anchor="middle">スイッチ</text><text class="s" x="228" y="56">Gi1/0/1</text><text class="s" x="228" y="126">Gi1/0/2</text><rect class="tag" x="400" y="152" width="150" height="16" rx="4"/><text class="s" x="475" y="164" text-anchor="middle">勝手につながれた（BPDU を出す）</text></svg>',
+      lead: "PC 用のポートで、PC がすぐ通信できるようにし、スイッチがつながれたら止まるようにする。",
+      facts: [["Gi1/0/1", "PC がつながっている"], ["Gi1/0/2", "PC 用のはずが、誰かが小さなスイッチをつないでいる"], ["VLAN", "VLAN 10 は作成済み"]],
+      goals: [
+        "Gi1/0/1・Gi1/0/2 をアクセスポート（VLAN 10）にする",
+        "2つのポートで PortFast と BPDU ガードを有効にする",
+        "Gi1/0/2 が err-disabled になったことを確かめる（show interfaces status）",
+        "Gi1/0/1 は connected のまま",
+      ],
+      links: {
+        "Gi1/0/1": { hosts: ["192.168.10.11"] },
+        "Gi1/0/2": { peer: "SW9", peerIf: "Gi0/1", mode: "dynamic auto" },
+      },
+      bridges: { SW9: { mac: "00a1.0000.0900" } },
+      setup(st) {
+        st.vlans.set(10, "SALES");
+      },
+      checks: [
+        ["2つのポートがアクセスポート（VLAN 10）", (st) => ["Gi1/0/1", "Gi1/0/2"].every((k) => st.ifs[k].mode === "access" && st.ifs[k].access === 10)],
+        ["2つのポートで PortFast が有効", (st) => ["Gi1/0/1", "Gi1/0/2"].every((k) => portfastOn(st, k))],
+        ["2つのポートで BPDU ガードが有効", (st) => ["Gi1/0/1", "Gi1/0/2"].every((k) => bpduguardOn(st, k))],
+        ["Gi1/0/2 が err-disabled", (st) => st.ifs["Gi1/0/2"].errdis === "bpduguard"],
+        ["Gi1/0/1 は connected", (st) => linkUp(st, "Gi1/0/1")],
+      ],
+      hint:
+        "<p>まとめて設定するなら <code>interface range g1/0/1 - 2</code>。<br><code>switchport mode access</code>・<code>switchport access vlan 10</code>・<code>spanning-tree portfast</code>・<code>spanning-tree bpduguard enable</code> を入れる。<br>グローバルで <code>spanning-tree portfast default</code> と <code>spanning-tree portfast bpduguard default</code> を使ってもよい（アクセスポートすべてに効く）。<br>err-disabled から戻すには、原因（スイッチ）を外してから <code>shutdown</code> → <code>no shutdown</code>。</p>",
+      answer: [
+        "enable",
+        "configure terminal",
+        "interface range Gi1/0/1 - 2   ! PC 用のポートをまとめて選ぶ",
+        " switchport mode access   ! アクセスポートに固定",
+        " switchport access vlan 10",
+        " spanning-tree portfast   ! すぐ転送を始める",
+        " spanning-tree bpduguard enable   ! BPDU を受けたら err-disabled にする",
+        " end",
+        "show interfaces status   ! Gi1/0/2 が err-disabled",
+        "show interfaces status err-disabled   ! 原因が bpduguard",
+      ],
+    },
+
+    rootguard: {
+      title: "ルートガード",
+      figure: '<svg viewBox="0 0 640 230" role="img" aria-label="ディストリビューションのSW1とSW2、下流のアクセススイッチSW3。SW3が優先度0でルートを奪っている"><path class="ln" d="M215 52 H425"/><path class="ln" d="M150 81 L275 150"/><path class="ln" d="M490 81 L365 150"/><rect class="sw" x="45" y="23" width="170" height="58" rx="10"/><text class="t" x="130" y="47" text-anchor="middle">SW1</text><text class="s" x="130" y="67" text-anchor="middle">優先度 24576（本来のルート）</text><rect class="box" x="425" y="23" width="170" height="58" rx="10"/><text class="t" x="510" y="47" text-anchor="middle">SW2</text><text class="s" x="510" y="67" text-anchor="middle">優先度 28672</text><rect class="box" x="235" y="150" width="170" height="58" rx="10"/><text class="t" x="320" y="174" text-anchor="middle">SW3（アクセス）</text><text class="s" x="320" y="194" text-anchor="middle">MAC 00a1.0000.0500</text><rect class="tag" x="235" y="212" width="170" height="16" rx="4"/><text class="s" x="320" y="224" text-anchor="middle">優先度 0 に設定されてしまった</text><text class="s" x="320" y="44" text-anchor="middle">Gi1/0/23</text><text class="s" x="196" y="128" text-anchor="end">Gi1/0/24</text><text class="s" x="130" y="16" text-anchor="middle">ここを設定する</text><text class="s" x="320" y="104" text-anchor="middle">ディストリビューション（上）とアクセス（下）</text></svg>',
+      lead: "下流のアクセススイッチ SW3 が優先度 0 に設定され、VLAN 10 のルートを奪っている。SW1 にルートガードを入れて、ルートを取り戻す。",
+      facts: [["SW1", "ディストリビューション。VLAN 10 の優先度 24576（本来のルート）"], ["Gi1/0/23", "→ SW2（もう1台のディストリビューション。優先度 28672）"], ["Gi1/0/24", "→ SW3（アクセススイッチ。優先度 0 に設定されてしまった）"], ["STP", "Rapid PVST+（設定済み）"]],
+      goals: [
+        "show spanning-tree vlan 10 で、いまのルートを確かめる",
+        "下流（SW3）へのポートにルートガードを入れる",
+        "SW1 が VLAN 10 のルートに戻ったことを確かめる",
+        "Gi1/0/24 がルートの不整合（ROOT_Inc）で止まったことを確かめる",
+      ],
+      mac: "00a1.0000.0300",
+      links: {
+        "Gi1/0/23": { peer: "SW2", peerIf: "Gi1/0/23", mode: "trunk" },
+        "Gi1/0/24": { peer: "SW3", peerIf: "Gi1/0/1", mode: "trunk" },
+      },
+      bridges: {
+        SW2: { mac: "00a1.0000.0100", prio: { 10: 28672 }, costTo: { SW3: 4, SW1: 4 } },
+        SW3: { mac: "00a1.0000.0500", prio: { 10: 0 }, costTo: { SW1: 4, SW2: 4 } },
+      },
+      setup(st) {
+        st.vlans.set(10, "SALES");
+        st.ifs["Gi1/0/23"].mode = "trunk";
+        st.ifs["Gi1/0/24"].mode = "trunk";
+        st.stp.mode = "rapid-pvst";
+        st.stp.prio[10] = 24576;
+      },
+      checks: [
+        ["Gi1/0/24 にルートガード", (st) => st.ifs["Gi1/0/24"].guard === "root"],
+        ["Gi1/0/23（SW2 へ）にはルートガードを入れていない", (st) => st.ifs["Gi1/0/23"].guard !== "root"],
+        ["SW1 が VLAN 10 のルート", (st) => { const x = stpVlan(st, 10); return !!x && x.isRoot; }],
+        ["Gi1/0/24 が ROOT_Inc で止まっている", (st) => { const x = stpVlan(st, 10); return !!x && x.ports.some((p) => p.k === "Gi1/0/24" && p.inc); }],
+      ],
+      hint:
+        "<p>ルートガードは、<strong>その先にルートが来てはいけない</strong>ポート（下流へのポート）に入れる：<code>spanning-tree guard root</code>。<br>もう1台のディストリビューション（Gi1/0/23）に入れると、本来のルートを受け付けられなくなる。<br>止まったポートは、強い BPDU が来なくなれば自動で戻る（err-disabled にはならない）。</p>",
+      answer: [
+        "enable",
+        "show spanning-tree vlan 10   ! Root が SW3（優先度 0）、Gi1/0/24 が Root",
+        "configure terminal",
+        "interface Gi1/0/24",
+        " spanning-tree guard root   ! 下流からのルートを受け付けない",
+        " end",
+        "show spanning-tree vlan 10   ! This bridge is the root、Gi1/0/24 は BKN* ROOT_Inc",
+        "show spanning-tree inconsistentports   ! Root Inconsistent",
       ],
     },
 
